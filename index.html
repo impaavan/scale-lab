@@ -1,0 +1,1936 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Scale Lab: an interactive system design course in 12 levels, from one user on one server to a timed capstone.">
+<style>:root{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Scale Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  /* Layout: a live instrument panel (simulator) beside a lesson stepper. Stacks on phones. */
+  --bg:#ECEFE9; --surface:#F8F9F5; --ink:#15211C; --ink-2:#4B5A53; --line:#CAD1C8;
+  --accent:#0A6C88; --accent-ink:#FFFFFF; --ok:#27804A; --warn:#96640A; --bad:#C23A2C;
+  --grid:rgba(21,33,28,.07);
+  --f-display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
+  --f-body:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1512; --surface:#141E1A; --ink:#E5ECE7; --ink-2:#9BADA4; --line:#2A3A34;
+    --accent:#4CC3E0; --accent-ink:#06222B; --ok:#58C47C; --warn:#E6B73C; --bad:#FF7262;
+    --grid:rgba(229,236,231,.06); color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1512; --surface:#141E1A; --ink:#E5ECE7; --ink-2:#9BADA4; --line:#2A3A34;
+  --accent:#4CC3E0; --accent-ink:#06222B; --ok:#58C47C; --warn:#E6B73C; --bad:#FF7262;
+  --grid:rgba(229,236,231,.06); color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--f-body); font-size:16px; line-height:1.55;
+  background-image:radial-gradient(var(--grid) 1px,transparent 1px); background-size:18px 18px;
+  padding-block:20px 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px)); padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+.wrap{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;line-height:1.1}
+h1{font-size:clamp(30px,6vw,44px);font-weight:800;letter-spacing:-.01em}
+h2{font-size:clamp(24px,4.4vw,34px);font-weight:800}
+h3{font-size:19px;font-weight:600}
+p{margin:0 0 10px;max-width:65ch}
+ul,ol{margin:0 0 10px;padding-left:20px;max-width:65ch}
+li{margin-bottom:4px}
+.eyebrow{font:400 12px var(--f-mono);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2);margin:0 0 6px}
+.small{font-size:13px;color:var(--ink-2)}
+.mono{font-family:var(--f-mono)}
+
+.top{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between}
+.top p{margin:6px 0 0;color:var(--ink-2)}
+.prog{min-width:200px;flex:0 1 260px}
+.prog .bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:6px}
+.prog .bar i{display:block;height:100%;background:var(--accent);width:0}
+
+.levels{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;scrollbar-width:thin}
+.chip{flex:0 0 auto;display:flex;gap:8px;align-items:center;min-height:44px;padding:6px 12px 6px 8px;border:1px solid var(--line);
+  background:var(--surface);color:var(--ink);border-radius:4px;font:500 13px var(--f-body);cursor:pointer;text-align:left}
+.chip b{font:500 12px var(--f-mono);display:grid;place-items:center;width:26px;height:26px;border:1px solid var(--line);border-radius:50%}
+.chip.done b{background:var(--ok);border-color:var(--ok);color:var(--surface)}
+.chip[aria-current="true"]{border-color:var(--accent);box-shadow:inset 0 -3px 0 var(--accent)}
+.chip[aria-current="true"] b{border-color:var(--accent);color:var(--accent)}
+.chip.done[aria-current="true"] b{color:var(--surface)}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px;min-width:0}
+.panel>.eyebrow{display:flex;justify-content:space-between;gap:8px}
+.grid{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+@media (min-width:900px){
+  .grid{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);align-items:start}
+  .sim{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow-y:auto}
+}
+.head p{color:var(--ink-2);margin-top:8px;font-size:17px}
+
+/* shared sim parts */
+.spec{font:400 12px var(--f-mono);color:var(--ink-2);margin:0 0 12px}
+.readouts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;border-block:1px solid var(--line);padding-block:10px;margin-bottom:14px}
+.readouts div{min-width:0}
+.readouts .k{font:400 11px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.readouts .v{font:500 19px var(--f-mono);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+label.ctl{display:block;font:500 12px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);margin-bottom:6px}
+.ctlrow{margin:10px 0}
+.ctlrow label.ctl{display:flex;justify-content:space-between;gap:8px;margin-bottom:0}
+.cv{color:var(--ink);text-transform:none;letter-spacing:0;font-weight:500}
+input[type=range]{width:100%;accent-color:var(--accent);height:32px;margin:0}
+.ticks{display:flex;justify-content:space-between;font:400 11px var(--f-mono);color:var(--ink-2);margin-top:-2px}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.seg{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+.btn{font:500 13px var(--f-mono);min-height:40px;padding:6px 12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:4px;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.danger[aria-pressed="true"],.btn.danger.on{background:var(--bad);border-color:var(--bad);color:#fff}
+.btn.mini{min-height:32px;padding:3px 8px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:default}
+button:focus-visible,input:focus-visible,summary:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.st-ok{--st:var(--ok)}.st-warn{--st:var(--warn)}.st-bad{--st:var(--bad)}.st-info{--st:var(--ink-2)}
+
+.gauges{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-direction:column;gap:10px;max-width:none}
+.g{border-top:1px solid var(--line);padding-top:8px}
+.g .top2{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
+.g .n{font-weight:600;font-size:14px}
+.g .val{font:400 12px var(--f-mono);color:var(--ink-2);font-variant-numeric:tabular-nums}
+.meter{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin:6px 0}
+.meter i{display:block;height:100%;background:var(--st,var(--accent));width:0;transition:width .25s}
+.pill{font:500 10.5px var(--f-mono);letter-spacing:.06em;padding:1px 7px;border-radius:3px;color:var(--st);border:1px solid var(--st);background:color-mix(in srgb,var(--st) 12%,transparent)}
+.why{font-size:13px;color:var(--ink-2);margin:2px 0 0}
+.verdict{margin-top:14px;padding:10px 12px;border-left:3px solid var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent);font-size:14px;max-width:none}
+details{margin-top:14px;font-size:14px}
+summary{cursor:pointer;font:500 12px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);min-height:32px}
+.assume{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:8px}
+.assume label{font-size:12px;color:var(--ink-2);display:flex;flex-direction:column;gap:4px}
+.assume input{font:400 14px var(--f-mono);padding:6px 8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:4px;min-width:0;width:100%}
+
+.nodes{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin:10px 0}
+.nd{border:1px solid var(--st,var(--line));border-radius:4px;padding:8px;background:var(--bg);font-size:12px;min-width:0}
+.nd b{font:600 13px var(--f-body);display:block}
+.nd .meter{margin:6px 0}
+.nd .sub{font:400 11px var(--f-mono);color:var(--ink-2);display:block;overflow-wrap:anywhere}
+.nd.dead{opacity:.55;border-style:dashed}
+.flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;margin:8px 0}
+.flow .nd{flex:1 1 90px}
+.flow .arr{align-self:center;color:var(--ink-2);font:500 14px var(--f-mono)}
+.stack{display:flex;height:10px;border-radius:3px;overflow:hidden;background:var(--line);margin:6px 0}
+.stack i{display:block;height:100%}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font:400 11px var(--f-mono);color:var(--ink-2)}
+.legend span::before{content:"";display:inline-block;width:9px;height:9px;margin-right:5px;background:var(--c);border-radius:2px}
+.log{font:400 12px var(--f-mono);list-style:none;padding:0;margin:8px 0;max-width:none}
+.log li{padding:5px 0;border-top:1px solid var(--line);margin:0}
+select,textarea,.field{font:400 14px var(--f-body);padding:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:4px;width:100%}
+textarea{min-height:72px;resize:vertical}
+svg.chart{width:100%;height:auto;display:block}
+svg.chart text{font:400 10px var(--f-mono);fill:var(--ink-2)}
+svg.chart .ax{stroke:var(--line);stroke-width:1;fill:none}
+svg.chart .ln{fill:none;stroke:var(--accent);stroke-width:2}
+svg.chart .ln2{fill:none;stroke:var(--ok);stroke-width:2}
+svg.chart .ln3{fill:none;stroke:var(--bad);stroke-width:2}
+svg.chart .hl{stroke:var(--ink-2);stroke-dasharray:3 3;stroke-width:1}
+svg.chart .band{fill:var(--bad);opacity:.12}
+svg.chart .pt{fill:var(--st,var(--accent));stroke:var(--surface);stroke-width:2}
+
+/* lesson */
+.steps{display:flex;gap:6px;margin:6px 0 14px;flex-wrap:wrap}
+.steps button{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--bg);font:500 12px var(--f-mono);color:var(--ink);cursor:pointer}
+.steps button[aria-current="step"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.lesson h3{margin-bottom:10px}
+.nav{display:flex;justify-content:space-between;gap:8px;margin-top:16px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+.tw{overflow-x:auto;margin:8px 0 12px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:500 11px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+td.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.hit td{color:var(--bad)}
+.calc{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;font-size:14px;margin:8px 0 12px}
+.calc span:nth-child(even){font-family:var(--f-mono);text-align:right;font-variant-numeric:tabular-nums}
+.calc .tot{font-weight:600}
+.opts{display:flex;flex-direction:column;gap:8px;margin:8px 0}
+.opt{text-align:left;min-height:44px;padding:8px 12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:4px;font:400 15px var(--f-body);cursor:pointer}
+.opt:hover{border-color:var(--accent)}
+.opt.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}
+.opt.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 12%,transparent)}
+.opt.sel{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.fb{font-size:14px;margin:6px 0 0;max-width:none}
+.q{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
+.q:first-of-type{border-top:0;margin-top:6px;padding-top:0}
+.q p.qt{font-weight:600}
+.done-banner{margin-top:14px;padding:12px;border:1px solid var(--ok);background:color-mix(in srgb,var(--ok) 12%,transparent);border-radius:4px;max-width:none}
+.phase{border-top:1px solid var(--line);padding:10px 0}
+.phase.now{border-left:3px solid var(--accent);padding-left:10px}
+.phase h4{margin:0 0 6px;font:600 14px var(--f-body);display:flex;justify-content:space-between;gap:8px}
+.phase h4 span{font:400 12px var(--f-mono);color:var(--ink-2)}
+.timer{font:500 34px var(--f-mono);font-variant-numeric:tabular-nums}
+footer{font-size:13px;color:var(--ink-2);max-width:70ch}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Scale Lab</h1>
+      <p>System design from zero to hero. One simulator, one lesson and one quiz per level.</p>
+    </div>
+    <div class="prog" aria-live="polite">
+      <div class="small mono" id="progText">0 of 12 levels complete</div>
+      <div class="bar"><i id="progBar"></i></div>
+    </div>
+  </header>
+
+  <nav class="levels" id="levels" aria-label="Levels"></nav>
+
+  <section class="head">
+    <p class="eyebrow" id="lvEyebrow"></p>
+    <h2 id="lvTitle"></h2>
+    <p id="lvTag"></p>
+  </section>
+
+  <div class="grid">
+    <section class="panel sim" aria-label="Simulator">
+      <p class="eyebrow"><span>Simulator</span><span id="simMode"></span></p>
+      <div id="simHost"></div>
+    </section>
+    <section class="panel lesson" aria-label="Lesson">
+      <p class="eyebrow"><span>Lesson</span><span id="stepCount"></span></p>
+      <div class="steps" id="steps" role="group" aria-label="Lesson steps"></div>
+      <div id="stepBody"></div>
+      <div class="nav">
+        <button class="btn" data-act="prev" id="prevBtn">Back</button>
+        <button class="btn primary" data-act="next" id="nextBtn">Next</button>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel" aria-label="Checkpoint">
+    <p class="eyebrow"><span>Checkpoint</span><span id="quizCount"></span></p>
+    <div id="quiz"></div>
+    <div id="quizDone"></div>
+  </section>
+
+  <footer>Progress is saved in this browser only. Numbers come from simplified models so the trade-offs are easy to see. Real systems need load tests.</footer>
+</div>
+
+<script>
+/* ===== Scale Lab core ===== */
+(function(){
+  var SL=window.SL={levels:[],H:{}},H=SL.H;
+  var $=function(s){return document.querySelector(s);};
+  H.$=$;
+  H.esc=function(t){return String(t).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
+  H.fmtC=function(n){
+    if(n>=1e12)return (n/1e12).toFixed(1).replace(/\.0$/,'')+'T';
+    if(n>=1e9)return (n/1e9).toFixed(1).replace(/\.0$/,'')+'B';
+    if(n>=1e6)return (n/1e6).toFixed(n>=1e7?0:1).replace(/\.0$/,'')+'M';
+    if(n>=1e3)return (n/1e3).toFixed(n>=1e5?0:1).replace(/\.0$/,'')+'k';
+    return String(Math.round(n));
+  };
+  H.fmtN=function(n){return Math.round(n).toLocaleString('en-US');};
+  H.fmtRps=function(r){return r<0.1?'<0.1':r<10?r.toFixed(1):H.fmtN(r);};
+  H.fmtMs=function(ms){return ms>=30000?'timeout':ms>=1000?(ms/1000).toFixed(1)+' s':ms<10?ms.toFixed(1)+' ms':Math.round(ms)+' ms';};
+  H.fmtGB=function(g){return g<10?g.toFixed(1):H.fmtN(g);};
+  H.fmtData=function(gb){return gb>=1000?(gb/1000).toFixed(gb>=10000?0:1).replace(/\.0$/,'')+' TB':gb>=10?Math.round(gb)+' GB':gb.toFixed(1)+' GB';};
+  H.fmtDur=function(sec){
+    if(sec<1)return '<1 s'; if(sec<90)return Math.round(sec)+' s';
+    if(sec<5400)return Math.round(sec/60)+' min'; if(sec<172800)return (sec/3600).toFixed(1).replace(/\.0$/,'')+' h';
+    return Math.round(sec/86400)+' days';
+  };
+  H.money=function(n){return '$'+Math.round(n).toLocaleString('en-US');};
+  H.pct=function(x){return Math.round(x*100)+'%';};
+  H.peakRps=function(u){return u*50*3/86400;};
+  H.logU=function(v){return Math.max(1,Math.round(Math.pow(10,Number(v)/100)));};
+  H.vOf=function(u){return Math.round(Math.log10(Math.max(1,u))*100);};
+  H.worst=function(a){return a.indexOf('bad')>-1?'bad':a.indexOf('warn')>-1?'warn':'ok';};
+  H.clamp=function(x,a,b){return Math.min(b,Math.max(a,x));};
+  H.prng=function(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;var t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};};
+  H.hash=function(x){x=Math.imul((x|0)^((x|0)>>>16),0x45d9f3b);x=Math.imul(x^(x>>>16),0x45d9f3b);return (x^(x>>>16))>>>0;};
+
+  H.slider=function(id,label,min,max,val,step){
+    return '<div class="ctlrow"><label class="ctl" for="'+id+'"><span>'+label+'</span><span class="cv" id="'+id+'V"></span></label><input type="range" id="'+id+'" min="'+min+'" max="'+max+'" step="'+(step||1)+'" value="'+val+'"></div>';
+  };
+  H.usersSlider=function(id,u,label){
+    return '<div class="ctlrow"><label class="ctl" for="'+id+'"><span>'+(label||'Daily active users')+'</span><span class="cv" id="'+id+'V"></span></label><input type="range" id="'+id+'" min="0" max="700" step="1" value="'+H.vOf(u)+'"><div class="ticks" aria-hidden="true"><span>1</span><span>100</span><span>10k</span><span>1M</span><span>10M</span></div></div>';
+  };
+  H.seg=function(k,label,opts,cur){
+    return (label?'<label class="ctl">'+label+'</label>':'')+'<div class="seg" role="group" aria-label="'+H.esc(label||k)+'">'+opts.map(function(o){
+      return '<button class="btn" data-act="lvl" data-k="'+k+'" data-v="'+o.v+'" aria-pressed="'+(String(o.v)===String(cur))+'">'+o.l+'</button>';
+    }).join('')+'</div>';
+  };
+  H.syncSeg=function(root,k,cur){
+    var bs=root.querySelectorAll('[data-act="lvl"][data-k="'+k+'"]');
+    for(var i=0;i<bs.length;i++)bs[i].setAttribute('aria-pressed',String(bs[i].getAttribute('data-v')===String(cur)));
+  };
+  H.setText=function(root,id,t){var e=root.querySelector('#'+id);if(e)e.textContent=t;};
+  H.setVal=function(root,id,v){var e=root.querySelector('#'+id);if(e)e.value=v;};
+  H.bind=function(root,map){
+    root.addEventListener('input',function(e){var f=map[e.target.id];if(f)f(e.target.value,e);});
+  };
+  H.gauge=function(name,val,frac,st,txt,label){
+    var lab=label||(st==='ok'?'OK':st==='warn'?'WATCH':st==='bad'?'BREAKS':'INFO');
+    return '<li class="g st-'+st+'"><div class="top2"><span class="n">'+name+'</span><span class="val">'+H.esc(val)+'</span><span class="pill">'+lab+'</span></div>'+
+      (frac===null?'':'<div class="meter"><i style="width:'+Math.round(H.clamp(frac,0,1)*100)+'%"></i></div>')+
+      (txt?'<p class="why">'+H.esc(txt)+'</p>':'')+'</li>';
+  };
+  H.stack=function(segs){return '<div class="stack">'+segs.map(function(s){return '<i style="width:'+s.w.toFixed(1)+'%;background:'+s.c+'"></i>';}).join('')+'</div>';};
+  H.table=function(head,rows){
+    return '<div class="tw"><table><thead><tr>'+head.map(function(h){return '<th>'+h+'</th>';}).join('')+'</tr></thead><tbody>'+
+      rows.map(function(r){return '<tr'+(r.cls?' class="'+r.cls+'"':'')+'>'+r.c.map(function(c,i){return '<td'+(r.num&&r.num.indexOf(i)>-1?' class="num"':'')+'>'+c+'</td>';}).join('')+'</tr>';}).join('')+
+      '</tbody></table></div>';
+  };
+  H.chart=function(o){
+    var w=o.w||320,h=o.h||170,L=o.l||38,R=o.r||16,T=o.t||12,B=o.b||30,x0=o.xmin||0,span=(o.xmax-x0)||1;
+    function X(x){return L+(x-x0)/span*(w-L-R);}
+    function Y(y){return h-B-Math.min(Math.max(y,0),o.ymax)/(o.ymax||1)*(h-B-T);}
+    var s='<svg class="chart" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="'+H.esc(o.aria||'Chart')+'">';
+    (o.bands||[]).forEach(function(b){s+='<rect class="band" x="'+X(b.x0).toFixed(1)+'" y="'+T+'" width="'+Math.max(1,X(b.x1)-X(b.x0)).toFixed(1)+'" height="'+(h-B-T)+'"/>'+(b.l?'<text x="'+(X(b.x0)+3).toFixed(1)+'" y="'+(T+10)+'">'+b.l+'</text>':'');});
+    s+='<path class="ax" d="M'+L+' '+T+'V'+(h-B)+'H'+(w-R)+'"/>';
+    (o.xticks||[]).forEach(function(t){s+='<text x="'+X(t.x).toFixed(1)+'" y="'+(h-B+13)+'" text-anchor="middle">'+t.l+'</text>';});
+    (o.yticks||[]).forEach(function(t){s+='<text x="'+(L-4)+'" y="'+(Y(t.y)+3).toFixed(1)+'" text-anchor="end">'+t.l+'</text>';});
+    if(o.xlabel)s+='<text x="'+((L+w-R)/2)+'" y="'+(h-4)+'" text-anchor="middle">'+o.xlabel+'</text>';
+    (o.hlines||[]).forEach(function(l){s+='<line class="hl" x1="'+L+'" y1="'+Y(l.y).toFixed(1)+'" x2="'+(w-R)+'" y2="'+Y(l.y).toFixed(1)+'"/><text x="'+(w-R-2)+'" y="'+(Y(l.y)-3).toFixed(1)+'" text-anchor="end">'+l.l+'</text>';});
+    (o.series||[]).forEach(function(se){
+      s+='<path class="'+(se.cls||'ln')+'" d="'+se.pts.map(function(p,i){return (i?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1);}).join(' ')+'"/>';
+    });
+    if(o.point)s+='<circle class="pt st-'+(o.point.st||'ok')+'" cx="'+X(o.point.x).toFixed(1)+'" cy="'+Y(o.point.y).toFixed(1)+'" r="5"/>';
+    return s+'</svg>';
+  };
+
+  SL.add=function(l){SL.levels[l.id-1]=l;};
+
+  /* ---------- state ---------- */
+  var store={done:[],last:1};
+  try{var raw=localStorage.getItem('scalelab.v1');if(raw){var p=JSON.parse(raw);if(p&&p.done)store=p;}}catch(e){}
+  function save(){try{localStorage.setItem('scalelab.v1',JSON.stringify(store));}catch(e){}}
+  var S={level:1,step:0,ans:{}};
+  var booted=false,mounted=null;
+  function lv(){return SL.levels[S.level-1];}
+  SL.refresh=function(){var L=lv();if(!L)return;L.sim.update();var st=L.steps[S.step];if(st&&st.dyn)renderStepBody();};
+  SL.renderStep=function(){renderStepBody();};
+  SL.setMode=function(t){var e=$('#simMode');if(e)e.textContent=t;};
+  SL.markDone=function(id){if(store.done.indexOf(id)<0){store.done.push(id);save();renderChrome();}};
+
+  function renderChrome(){
+    var N=SL.levels.length;
+    $('#levels').innerHTML=SL.levels.map(function(l){
+      var d=store.done.indexOf(l.id)>-1;
+      return '<button class="chip'+(d?' done':'')+'" data-act="level" data-v="'+l.id+'" aria-current="'+(l.id===S.level)+'"><b>'+(d?'✓':l.id)+'</b><span>'+H.esc(l.short)+'</span></button>';
+    }).join('');
+    $('#progText').textContent=store.done.length+' of '+N+' levels complete';
+    $('#progBar').style.width=(store.done.length/N*100)+'%';
+    var L=lv();
+    $('#lvEyebrow').textContent='Level '+S.level+' of '+N;
+    $('#lvTitle').textContent=L.title;
+    $('#lvTag').textContent=L.tag;
+  }
+
+  function setLevel(id){
+    if(mounted&&mounted.sim.destroy)mounted.sim.destroy();
+    S.level=id;S.step=0;store.last=id;save();
+    var L=lv();mounted=L;
+    renderChrome();
+    var host=$('#simHost');
+    host.innerHTML='<div class="simin">'+L.sim.html+'</div>';
+    SL.setMode('');
+    L.sim.init(host.firstChild);
+    L.sim.update();
+    renderLesson();renderQuiz();
+    if(booted){var el=$('#levels');if(el&&el.scrollIntoView)el.scrollIntoView({block:'start',behavior:'auto'});}
+  }
+
+  function renderLesson(){
+    var L=lv();
+    $('#steps').innerHTML=L.steps.map(function(s,i){return '<button data-act="step" data-v="'+i+'" aria-label="Step '+(i+1)+': '+H.esc(s.t)+'" '+(i===S.step?'aria-current="step"':'')+'>'+(i+1)+'</button>';}).join('');
+    $('#stepCount').textContent='Step '+(S.step+1)+' of '+L.steps.length;
+    $('#prevBtn').disabled=S.step===0;
+    $('#nextBtn').disabled=S.step===L.steps.length-1;
+    renderStepBody();
+  }
+  function renderStepBody(){
+    var L=lv(),st=L.steps[S.step],h='<h3>'+H.esc(st.t)+'</h3>'+st.b();
+    if(st.tries&&st.tries.length){
+      h+='<div class="row">'+st.tries.map(function(t){
+        var o={};for(var k in t)if(k!=='l')o[k]=t[k];
+        return '<button class="btn" data-act="lvl" data-k="try" data-v="'+H.esc(JSON.stringify(o))+'">'+H.esc(t.l)+'</button>';
+      }).join('')+'</div>';
+    }
+    $('#stepBody').innerHTML=h;
+  }
+
+  function renderQuiz(){
+    var L=lv(),A=S.ans[L.id]||(S.ans[L.id]={}),right=0;
+    $('#quiz').innerHTML=L.quiz.map(function(q,qi){
+      var sel=A[qi],ok=sel===q.a;if(ok)right++;
+      var o=q.o.map(function(t,oi){
+        var cls='opt';if(sel===oi)cls+=ok?' right':' wrong';
+        return '<button class="'+cls+'" data-act="ans" data-q="'+qi+'" data-o="'+oi+'" '+(ok?'disabled':'')+'>'+H.esc(t)+'</button>';
+      }).join('');
+      var fb=sel===undefined?'':ok?'<p class="fb">'+H.esc(q.x)+'</p>':'<p class="fb">Not quite. '+H.esc(q.h)+'</p>';
+      return '<div class="q"><p class="qt">'+(qi+1)+'. '+H.esc(q.q)+'</p><div class="opts">'+o+'</div>'+fb+'</div>';
+    }).join('');
+    $('#quizCount').textContent=right+' of '+L.quiz.length+' correct';
+    var complete=right===L.quiz.length;
+    if(complete&&store.done.indexOf(L.id)<0){store.done.push(L.id);save();renderChrome();}
+    var next=SL.levels[L.id],all=store.done.length>=SL.levels.length;
+    $('#quizDone').innerHTML=complete?'<div class="done-banner"><b>Level '+L.id+' complete.</b> '+
+      (next?'Next up: '+H.esc(next.title)+'.':(all?'You have finished every level. Run the capstone again with a different prompt, and set the timer.':'Finish the remaining levels to complete the course.'))+
+      (next?'<div class="row"><button class="btn primary" data-act="level" data-v="'+next.id+'">Go to level '+next.id+'</button></div>':'')+'</div>':'';
+  }
+
+  document.addEventListener('click',function(e){
+    var t=e.target.closest('[data-act]');if(!t)return;
+    var act=t.getAttribute('data-act'),L=lv();
+    if(act==='level'){setLevel(Number(t.getAttribute('data-v')));return;}
+    if(act==='step'){S.step=Number(t.getAttribute('data-v'));renderLesson();return;}
+    if(act==='prev'){S.step=Math.max(0,S.step-1);renderLesson();return;}
+    if(act==='next'){S.step=Math.min(L.steps.length-1,S.step+1);renderLesson();return;}
+    if(act==='ans'){(S.ans[L.id]||(S.ans[L.id]={}))[t.getAttribute('data-q')]=Number(t.getAttribute('data-o'));renderQuiz();return;}
+    if(act==='lvl'){
+      var k=t.getAttribute('data-k'),v=t.getAttribute('data-v');
+      if(k==='try'){var o={};try{o=JSON.parse(v);}catch(err){}L.sim.apply(o);}else L.sim.act(k,v);
+      L.sim.update();renderStepBody();
+    }
+  });
+
+  SL.boot=function(){
+    var start=store.last>=1&&store.last<=SL.levels.length?store.last:1;
+    setLevel(start);booted=true;
+  };
+})();
+/* ===== Levels 1 and 2: one server ===== */
+(function(){
+  var H=SL.H;
+  var DEF={reqPerUser:50,peak:3,respKB:30};
+  var SIZES={
+    S:{name:'Small',cores:2,ram:8,disk:100,net:1000,pool:100,cost:45},
+    M:{name:'Medium',cores:8,ram:32,disk:500,net:2000,pool:300,cost:190},
+    L:{name:'Large',cores:32,ram:128,disk:2000,net:10000,pool:1000,cost:780},
+    XL:{name:'Huge',cores:96,ram:384,disk:8000,net:25000,pool:3000,cost:2400}
+  };
+  var RPS_CORE=125;
+  var KEYS=['cpu','cache','conns','disk','net','lat'];
+  var NAMES={cpu:'CPU',cache:'Memory cache',conns:'Database connections',disk:'Disk space',net:'Network',lat:'Response time (p95)',spof:'Redundancy'};
+  H.SIZES=SIZES;
+
+  function model(users,size,a){
+    var s=SIZES[size],perDay=users*a.reqPerUser,avg=perDay/86400,rps=avg*a.peak;
+    var cap=s.cores*RPS_CORE,cpu=rps/cap;
+    var dataGB=users*5e-5,hot=dataGB*0.3,avail=s.ram-2;
+    var hit=hot<=0?1:Math.min(1,avail/hot);
+    var base=15+85*(1-hit),rho=Math.min(cpu,0.995);
+    var mean=base/(1-rho),p95=Math.min(mean*3,30000);
+    var drop=cpu>1?1-1/cpu:0,inflight=rps*mean/1000;
+    var disk=5+dataGB+perDay*2e-7*7,mbps=rps*a.respKB*8/1000;
+    var m={users:users,perDay:perDay,avg:avg,rps:rps,cap:cap,cpu:cpu,dataGB:dataGB,hot:hot,hit:hit,base:base,mean:mean,p95:p95,drop:drop,inflight:inflight,disk:disk,mbps:mbps,s:s};
+    var cr=inflight/s.pool,dr=disk/s.disk,nr=mbps/s.net;
+    m.cr=cr;m.dr=dr;m.nr=nr;
+    m.st={
+      cpu:cpu<0.7?'ok':cpu<1?'warn':'bad',
+      cache:hit>=0.95?'ok':hit>=0.7?'warn':'bad',
+      conns:cr<0.6?'ok':cr<1?'warn':'bad',
+      disk:dr<0.75?'ok':dr<0.95?'warn':'bad',
+      net:nr<0.6?'ok':nr<0.9?'warn':'bad',
+      lat:p95<500?'ok':p95<1500?'warn':'bad'
+    };
+    return m;
+  }
+  var bpCache={};
+  function breakpoints(size,a){
+    var ck=size+'|'+a.reqPerUser+'|'+a.peak+'|'+a.respKB;
+    if(bpCache[ck])return bpCache[ck];
+    var out={},n=0;
+    for(var u=1;u<=1e9&&n<KEYS.length;u=Math.max(u+1,Math.ceil(u*1.01))){
+      var m=model(u,size,a);
+      for(var i=0;i<KEYS.length;i++){var k=KEYS[i];if(out[k]===undefined&&m.st[k]==='bad'){out[k]=u;n++;}}
+    }
+    bpCache[ck]=out;return out;
+  }
+  function firstBreak(size,a){
+    var bp=breakpoints(size,a),best=null;
+    KEYS.forEach(function(k){if(bp[k]!==undefined&&(best===null||bp[k]<best.u))best={k:k,u:bp[k]};});
+    return best;
+  }
+  function bpText(u){return u===undefined?'not before 1B users':'about '+H.fmtC(u)+' users';}
+
+  var S={users:1,size:'S',down:false,a:{reqPerUser:DEF.reqPerUser,peak:DEF.peak,respKB:DEF.respKB},pred:null};
+  var root=null;
+  function q(s){return root.querySelector(s);}
+
+  var HTML=
+    '<svg id="dia" viewBox="0 0 360 170" role="img" aria-label="Users send requests to a single server that runs the app, the database and the disk.">'+
+    '<style>#dia .box,#dia .srvbox{fill:var(--bg);stroke:var(--line);stroke-width:1.2}#dia .lbl{font:500 10px var(--f-mono);letter-spacing:.08em;fill:var(--ink-2)}#dia .val{font:500 15px var(--f-mono);fill:var(--ink)}#dia .small{font:400 10.5px var(--f-mono);fill:var(--ink-2)}#dia .arrow{stroke:var(--ink-2);stroke-width:1.5}#dia .arrowhead{fill:var(--ink-2)}#dia .node rect{fill:var(--surface);stroke:var(--st,var(--line));stroke-width:1.6}#dia .nt{font:600 12px var(--f-body);fill:var(--ink)}#dia .nv{font:400 10.5px var(--f-mono);fill:var(--ink-2)}#dia .dot{fill:var(--accent);opacity:0;animation:flow var(--dur,1.6s) linear infinite}#dia .dot:nth-child(2){animation-delay:calc(var(--dur,1.6s)/-3)}#dia .dot:nth-child(3){animation-delay:calc(var(--dur,1.6s)/-1.5)}@keyframes flow{0%{transform:translateX(0);opacity:0}12%{opacity:1}88%{opacity:1}100%{transform:translateX(68px);opacity:0}}#dia.down .dot{animation:none;opacity:0}#dia.down .arrow{stroke:var(--bad)}#dia.down .arrowhead{fill:var(--bad)}#dia.down #srv{opacity:.4}#downTag{font:600 12px var(--f-mono);letter-spacing:.08em;fill:var(--bad);opacity:0}#dia.down #downTag{opacity:1}@media (prefers-reduced-motion:reduce){#dia .dot{animation:none;opacity:.8}}#dia{width:100%;height:auto;display:block}</style>'+
+    '<g><rect class="box" x="6" y="55" width="78" height="60" rx="6"/><text class="lbl" x="45" y="78" text-anchor="middle">USERS</text><text class="val" id="uLabel" x="45" y="100" text-anchor="middle">1</text></g>'+
+    '<line class="arrow" x1="90" y1="85" x2="166" y2="85"/><polygon class="arrowhead" points="166,80 175,85 166,90"/>'+
+    '<g><circle class="dot" cx="92" cy="85" r="3"/><circle class="dot" cx="92" cy="85" r="3"/><circle class="dot" cx="92" cy="85" r="3"/></g>'+
+    '<text class="small" id="rpsLabel" x="132" y="72" text-anchor="middle"></text>'+
+    '<g id="srv"><rect class="srvbox" x="180" y="10" width="172" height="150" rx="8"/><text class="lbl" x="192" y="28">ONE SERVER</text>'+
+    '<g class="node" id="nApp"><rect x="192" y="38" width="148" height="34" rx="4"/><text class="nt" x="202" y="59">App</text><text class="nv" id="vApp" x="330" y="59" text-anchor="end"></text></g>'+
+    '<g class="node" id="nDb"><rect x="192" y="80" width="148" height="34" rx="4"/><text class="nt" x="202" y="101">Database</text><text class="nv" id="vDb" x="330" y="101" text-anchor="end"></text></g>'+
+    '<g class="node" id="nDisk"><rect x="192" y="122" width="148" height="30" rx="4"/><text class="nt" x="202" y="141">Disk</text><text class="nv" id="vDisk" x="330" y="141" text-anchor="end"></text></g></g>'+
+    '<text id="downTag" x="342" y="28" text-anchor="end">DOWN</text></svg>'+
+    '<p class="spec" id="spec"></p>'+
+    '<div class="readouts"><div><div class="k">Daily users</div><div class="v" id="uVal">1</div></div><div><div class="k">Peak req/s</div><div class="v" id="rpsVal">0</div></div><div><div class="k">Cost / month</div><div class="v" id="costVal">$45</div></div></div>'+
+    H.usersSlider('users',1)+
+    '<div class="row" id="presets" role="group" aria-label="User presets"></div>'+
+    '<label class="ctl">Server size</label><div class="row" id="sizes" role="group" aria-label="Server size"></div>'+
+    '<div class="row"><button class="btn danger" id="plug" data-act="lvl" data-k="plug" aria-pressed="false">Pull the plug</button></div>'+
+    '<ul class="gauges" id="gauges"></ul><p class="verdict" id="verdict" aria-live="polite"></p>'+
+    '<details><summary>Model assumptions</summary><p class="small">Each core handles 125 requests per second. Hot data is 30% of all data, and 2 GB of RAM goes to the OS and app. Logs are 0.2 KB per request, kept 7 days. These are round numbers for learning, not benchmarks.</p>'+
+    '<div class="assume"><label>Requests per user per day<input id="aReq" type="number" min="1" max="2000" value="50"></label><label>Peak vs. average<input id="aPeak" type="number" min="1" max="20" step="0.5" value="3"></label><label>Response size (KB)<input id="aKB" type="number" min="1" max="2000" value="30"></label></div>'+
+    '<div class="row"><button class="btn" data-act="lvl" data-k="resetA">Reset assumptions</button></div></details>';
+
+  var PRESETS=[1,100,10000,100000,1000000];
+  var GAUGES=['cpu','cache','conns','disk','net','lat','spof'];
+  function why(k,st,m){
+    var s=m.s;if(st==='ok')return '';
+    var T={
+      cpu:{warn:'Requests are starting to wait for a free core.',bad:'Demand is '+m.cpu.toFixed(1)+'× what the CPU can do. Requests queue, time out, and about '+H.pct(m.drop)+' are dropped.'},
+      cache:{warn:'Hot data no longer fits in RAM, so some reads go to disk.',bad:'Most reads now go to disk, which is far slower than RAM.'},
+      conns:{warn:'The database allows '+s.pool+' connections at once. Slow requests hold theirs longer.',bad:'The connection pool is full. New requests fail straight away.'},
+      disk:{warn:'Data plus logs are filling the disk.',bad:'The disk is full. Writes fail and the database can stop.'},
+      net:{warn:'Traffic is using most of the network link.',bad:'The network link is saturated. Responses crawl.'},
+      lat:{warn:'Users notice the slowdown.',bad:'Pages feel broken. People leave.'},
+      spof:{warn:'One machine runs everything. A crash, reboot or deploy takes the whole app down.',bad:'Everything is down. There is no second server to take over.'}
+    };
+    return T[k][st];
+  }
+  function init(el){
+    root=el;
+    q('#presets').innerHTML=PRESETS.map(function(p){return '<button class="btn" data-act="lvl" data-k="preset" data-v="'+p+'" aria-pressed="false">'+(p===1?'1 user':H.fmtC(p))+'</button>';}).join('');
+    q('#sizes').innerHTML=Object.keys(SIZES).map(function(k){return '<button class="btn" data-act="lvl" data-k="size" data-v="'+k+'" aria-pressed="false">'+SIZES[k].name+'</button>';}).join('');
+    H.bind(el,{users:function(v){S.users=H.logU(v);SL.refresh();}});
+    ['aReq','aPeak','aKB'].forEach(function(id){q('#'+id).addEventListener('change',function(){
+      var r=Number(q('#aReq').value),p=Number(q('#aPeak').value),k=Number(q('#aKB').value);
+      if(r>0)S.a.reqPerUser=r;if(p>=1)S.a.peak=p;if(k>0)S.a.respKB=k;SL.refresh();
+    });});
+  }
+  function update(){
+    var s=SIZES[S.size],m=model(S.users,S.size,S.a),down=S.down;
+    q('#users').value=H.vOf(S.users);H.setText(root,'usersV',H.fmtN(S.users));
+    H.setText(root,'uVal',H.fmtN(S.users));
+    H.setText(root,'rpsVal',down?'0':H.fmtRps(m.rps));
+    H.setText(root,'costVal',H.money(s.cost));
+    H.setText(root,'uLabel',H.fmtC(S.users));
+    H.setText(root,'rpsLabel',down?'requests fail':H.fmtRps(m.rps)+' req/s');
+    H.setText(root,'spec',s.cores+' vCPU · '+s.ram+' GB RAM · '+s.disk+' GB disk · '+H.fmtN(s.net)+' Mbps');
+    var dia=q('#dia');dia.classList.toggle('down',down);
+    dia.style.setProperty('--dur',Math.min(3,Math.max(0.5,3-Math.log10(m.rps+1)*0.8)).toFixed(2)+'s');
+    var sApp=H.worst([m.st.cpu,m.st.conns,m.st.lat]),sDb=H.worst([m.st.cache,m.st.conns]);
+    q('#nApp').setAttribute('class','node st-'+sApp);q('#nDb').setAttribute('class','node st-'+sDb);q('#nDisk').setAttribute('class','node st-'+m.st.disk);
+    H.setText(root,'vApp','CPU '+H.pct(Math.min(m.cpu,9.99)));
+    H.setText(root,'vDb','hits '+H.pct(m.hit));
+    H.setText(root,'vDisk',H.fmtGB(m.disk)+' / '+s.disk+' GB');
+    Array.prototype.forEach.call(q('#presets').children,function(b){b.setAttribute('aria-pressed',String(Number(b.getAttribute('data-v'))===S.users));});
+    H.syncSeg(root,'size',S.size);
+    var pl=q('#plug');pl.setAttribute('aria-pressed',String(down));pl.textContent=down?'Plug it back in':'Pull the plug';
+    var info={
+      cpu:{v:H.pct(m.cpu)+' of '+(s.cores*RPS_CORE)+' req/s',f:Math.min(1,m.cpu)},
+      cache:{v:H.pct(m.hit)+' of reads from RAM',f:m.hit},
+      conns:{v:H.fmtN(Math.min(m.inflight,99999))+' in use / '+s.pool,f:Math.min(1,m.cr)},
+      disk:{v:H.fmtGB(m.disk)+' / '+s.disk+' GB',f:Math.min(1,m.dr)},
+      net:{v:H.fmtN(m.mbps)+' / '+H.fmtN(s.net)+' Mbps',f:Math.min(1,m.nr)},
+      lat:{v:H.fmtMs(m.p95)+' (goal under 500 ms)',f:Math.min(1,m.p95/1500)},
+      spof:{v:'1 server, 0 spares',f:1}
+    };
+    q('#gauges').innerHTML=GAUGES.map(function(k){
+      var st=k==='spof'?(down?'bad':'warn'):(down?'bad':m.st[k]);
+      var val=down&&k!=='spof'?'no response':info[k].v;
+      var txt=down&&k!=='spof'?'The server is not running.':why(k,st,m);
+      return H.gauge(NAMES[k],val,down?1:info[k].f,st,txt);
+    }).join('');
+    var fb=firstBreak(S.size,S.a);
+    H.setText(root,'verdict',fb?'This '+s.name.toLowerCase()+' box first breaks at '+bpText(fb.u)+'. First failure: '+NAMES[fb.k]+'.':'This box holds up past 1B users in the model.');
+    SL.setMode(down?'server down':'1 server');
+  }
+  function usersAtCpu(f){var s=SIZES[S.size];return Math.round(s.cores*RPS_CORE*f*86400/(S.a.reqPerUser*S.a.peak));}
+  function apply(o){
+    if(o.users==='u60')S.users=Math.max(1,usersAtCpu(0.6));
+    else if(o.users==='u95')S.users=Math.max(1,usersAtCpu(0.95));
+    else if(o.users!==undefined)S.users=Math.max(1,Math.round(Number(o.users)));
+    if(o.size)S.size=o.size;
+    if(o.plug!==undefined)S.down=!!o.plug;
+  }
+  function act(k,v){
+    if(k==='preset')S.users=Number(v);
+    else if(k==='size')S.size=v;
+    else if(k==='plug')S.down=!S.down;
+    else if(k==='pred')S.pred=Number(v);
+    else if(k==='resetA'){S.a={reqPerUser:DEF.reqPerUser,peak:DEF.peak,respKB:DEF.respKB};H.setVal(root,'aReq',50);H.setVal(root,'aPeak',3);H.setVal(root,'aKB',30);}
+  }
+  function mk(start){
+    return {html:HTML,init:function(el){S.users=start;S.size='S';S.down=false;S.pred=null;S.a={reqPerUser:DEF.reqPerUser,peak:DEF.peak,respKB:DEF.respKB};init(el);},update:update,apply:apply,act:act};
+  }
+
+  function curveSvg(m){
+    var pts=[];for(var r=0;r<=0.99;r+=0.01)pts.push([r,Math.min(2000,3*m.base/(1-r))]);
+    var rho=Math.min(m.cpu,0.99),st=m.cpu<0.7?'ok':m.cpu<1?'warn':'bad';
+    return H.chart({w:320,h:170,xmax:1,ymax:2000,series:[{pts:pts}],hlines:[{y:500,l:'500 ms goal'}],
+      xticks:[{x:0,l:'0%'},{x:0.5,l:'50%'},{x:1,l:'100%'}],yticks:[{y:0,l:'0'},{y:1000,l:'1 s'},{y:2000,l:'2 s'}],xlabel:'CPU busy',
+      point:{x:rho,y:Math.min(2000,3*m.base/(1-rho)),st:st},aria:'p95 response time against CPU utilization. Flat until about 70 percent, then climbing steeply.'})+
+      '<p class="small">Right now: '+H.pct(m.cpu)+' busy, p95 '+H.fmtMs(m.p95)+'.</p>';
+  }
+
+  SL.add({id:1,short:'One user, one server',title:'One user, one server',
+    tag:'Start with the smallest system that works. See what it gives you and where it is already fragile.',
+    sim:mk(1),
+    steps:[
+      {t:'The smallest system that works',
+       b:function(){return '<p>One machine runs everything: your app code, your database and your files. A request comes in, the app reads the database sitting next to it, and the page goes back out.</p><p>The panel is a live model of that machine. At one user, every gauge sits close to zero.</p>';},
+       tries:[{l:'Set to 1 user',users:1,plug:false}]},
+      {t:'What works',
+       b:function(){return '<ul><li><b>Speed.</b> The app talks to the database on the same machine, so there is no network hop. A request takes about 15 ms in this model.</li><li><b>Simplicity.</b> One thing to deploy, one log to read, no copies of data to keep in sync.</li><li><b>Cost.</b> About '+H.money(SIZES.S.cost)+' a month for this box.</li></ul><p>Push the slider to 1,000 users. Nothing changes.</p>';},
+       tries:[{l:'Try 1,000 users',users:1000,plug:false}]},
+      {t:'What is already fragile',
+       b:function(){return '<p>Some problems exist even with one user. Traffic does not cause them.</p><ul><li>If the machine crashes, reboots or is being deployed to, the whole app is down.</li><li>If the disk fails, the data is gone unless a backup lives somewhere else.</li><li>The app and the database share one CPU and one pool of RAM, so a busy app slows the database.</li></ul><p>Pull the plug and look at the diagram.</p>';},
+       tries:[{l:'Pull the plug',plug:true},{l:'Plug it back in',plug:false}]},
+      {t:'The rule to carry forward',
+       b:function(){return '<p>Start with the simple box on purpose. Every piece you add later buys something and costs something. Add pieces when a number forces you to, not because a diagram looks more serious with more boxes.</p><p>At 10,000 daily users this box is still comfortable. The next level asks how far it really goes.</p>';},
+       tries:[{l:'Try 10,000 users',users:10000,plug:false}]}
+    ],
+    quiz:[
+      {q:'What is the main advantage of starting with a single server?',o:['It scales to any traffic','Nothing to coordinate: simple to run, debug and pay for','It never goes down','It needs no backups'],a:1,h:'Think about what you have to keep in sync with only one machine.',x:'One machine means one deploy, one log and no data to keep consistent. It does not scale far and it can go down.'},
+      {q:'The server crashes. What happens to your app?',o:['Traffic moves to a backup automatically','Only the database is affected','Everything is down until it is fixed','Only new users are affected'],a:2,h:'Ask what else could take over.',x:'There is nothing else. One machine is a single point of failure.'},
+      {q:'Why is the database call so fast in this design?',o:['Databases are always fast','There is no network hop, but the app and database compete for the same CPU and RAM','Data is cached in the browser','The disk is faster than RAM'],a:1,h:'Where does the database live relative to the app?',x:'A local call skips the network. The price is shared resources.'}
+    ]});
+
+  SL.add({id:2,short:'A million users, one server',title:'A million users, one server',
+    tag:'Keep the same single box and add traffic. Do the arithmetic, predict the breaking point, then watch what fails first.',
+    sim:mk(1000000),
+    steps:[
+      {t:'Do the math first',dyn:true,
+       b:function(){var m=model(S.users,S.size,S.a),a=S.a;
+         return '<p>System design starts with arithmetic. These numbers tell you which resource to worry about before you draw a box.</p><div class="calc">'+
+         '<span>'+H.fmtN(m.users)+' users × '+a.reqPerUser+' requests a day</span><span>'+H.fmtC(m.perDay)+' / day</span>'+
+         '<span>÷ 86,400 seconds in a day</span><span>'+H.fmtRps(m.avg)+' req/s avg</span>'+
+         '<span class="tot">× '+a.peak+' for the busiest hours</span><span class="tot">'+H.fmtRps(m.rps)+' req/s peak</span>'+
+         '<span>× '+a.respKB+' KB per response</span><span>'+H.fmtN(m.mbps)+' Mbps</span>'+
+         '<span>× 50 KB of stored data per user</span><span>'+H.fmtGB(m.dataGB)+' GB</span></div><p class="small">Change the assumptions under the simulator and watch these lines move.</p>';},
+       tries:[{l:'Set to 1,000,000 users',users:1000000,plug:false}]},
+      {t:'Predict, then look',
+       b:function(){
+         var opts=[10000,150000,1000000,10000000],actual=breakpoints(S.size,S.a).cpu||1e9,best=0,bd=1e9;
+         opts.forEach(function(o,i){var d=Math.abs(Math.log(o/actual));if(d<bd){bd=d;best=i;}});
+         var h='<p>The small server has 2 cores. Each core handles 125 requests per second. With 50 requests per user per day and a 3× peak, about how many daily users until the CPU is fully used?</p><div class="opts">';
+         opts.forEach(function(o,i){
+           var cls='opt';if(S.pred!==null){if(i===best)cls+=' right';else if(i===S.pred)cls+=' wrong';}
+           h+='<button class="'+cls+'" data-act="lvl" data-k="pred" data-v="'+i+'" '+(S.pred!==null?'disabled':'')+'>About '+H.fmtC(o)+' users</button>';
+         });
+         h+='</div>';
+         if(S.pred!==null){
+           h+='<p class="fb">'+(S.pred===best?'Right. ':'Not quite. ')+'The model puts it at '+bpText(actual)+'. This box handles '+H.fmtN(SIZES[S.size].cores*RPS_CORE)+' req/s, and each user adds '+(S.a.reqPerUser*S.a.peak/86400).toFixed(4)+' req/s at peak, so the CPU runs out near '+H.fmtC(actual)+'.</p><div class="row"><button class="btn primary" data-act="lvl" data-k="try" data-v="'+H.esc(JSON.stringify({users:actual}))+'">Show me at that point</button></div>';
+         }
+         return h;},
+       tries:[]},
+      {t:'Watch what breaks, in order',dyn:true,
+       b:function(){var m=model(S.users,S.size,S.a),bp=breakpoints(S.size,S.a);
+         var list=KEYS.map(function(k){return {k:k,u:bp[k]};}).sort(function(x,y){return (x.u||1e12)-(y.u||1e12);});
+         var rows=list.map(function(r){var hit=r.u!==undefined&&r.u<=m.users;return {cls:hit?'hit':'',num:[1],c:[NAMES[r.k],r.u===undefined?'not before 1B':H.fmtC(r.u),hit?'broken now':'fine now']};});
+         return '<p>Drag the slider slowly from 1,000 up to 1,000,000. The table shows the user count where each gauge first turns red on the current server.</p>'+
+         H.table(['Resource','Breaks at','At '+H.fmtC(m.users)],rows)+
+         '<p>CPU, response time and connections fail together because they share one cause. Disk and cache fail later because data grows with users. Some resources may never break at your scale, and knowing which ones saves you from fixing the wrong thing.</p>';},
+       tries:[{l:'Set to 1,000,000 users',users:1000000,plug:false}]},
+      {t:'Why latency explodes',dyn:true,
+       b:function(){var m=model(S.users,S.size,S.a);
+         return '<p>Response time does not rise in a straight line. Requests wait in a queue for a free core. Below about 70% CPU the queue is short. Past 90% each extra percent of load adds a lot of waiting.</p><p>This is why teams size servers to run at 40 to 60% busy. The headroom is what keeps the queue short.</p>'+curveSvg(m);},
+       tries:[{l:'Try 60% busy',users:'u60'},{l:'Try 95% busy',users:'u95'}]},
+      {t:'Try the obvious fix: a bigger box',dyn:true,
+       b:function(){
+         var rows=Object.keys(SIZES).map(function(k){var s=SIZES[k],fb=firstBreak(k,S.a);return {num:[2,3],c:[s.name,s.cores+' vCPU, '+s.ram+' GB',H.money(s.cost),fb?H.fmtC(fb.u):'none']};});
+         return '<p>Buying a bigger machine is called vertical scaling. Try each size at 1,000,000 users.</p>'+H.table(['Size','Specs','Per month','First failure'],rows)+
+         '<ul><li>It buys headroom fast, with no code changes.</li><li>Price rises roughly with size, and there is a largest machine you can rent.</li><li>It is still one machine. Pull the plug on the Huge box and everything is still down.</li></ul>';},
+       tries:[{l:'Small',size:'S',users:1000000},{l:'Medium',size:'M',users:1000000},{l:'Large',size:'L',users:1000000},{l:'Huge',size:'XL',users:1000000},{l:'Pull the plug',plug:true}]},
+      {t:'What you can take away',
+       b:function(){return '<ul><li>Estimate first: daily users become requests per second, bandwidth and storage.</li><li>One box fails at the resource whose demand grows fastest. Find that resource.</li><li>Latency collapses before utilization hits 100%.</li><li>Bigger boxes delay the problem. They do not remove the single point of failure.</li></ul><p>Next level: more than one server, a load balancer in front, and why your app servers must stop remembering things between requests.</p>';}}
+    ],
+    quiz:[
+      {q:'1,000,000 daily users, 50 requests each, peak at 3× average. About how many requests per second at peak?',o:['About 580','About 1,700','About 17,000','About 50,000'],a:1,h:'Divide by 86,400 seconds, then multiply by the peak factor.',x:'50M requests ÷ 86,400 is about 580 per second on average. Times 3 is about 1,740 at peak.'},
+      {q:'Why does response time shoot up as CPU approaches 100%?',o:['The network gets slower','Requests queue for a free core, and waiting grows faster than load','Disks get fragmented','The database deletes old data'],a:1,h:'Think about a checkout line with one cashier.',x:'Near full utilization every new request waits behind others, so delay climbs steeply.'},
+      {q:'What does buying a bigger server fix?',o:['The single point of failure','It buys headroom, but cost keeps climbing, there is a ceiling, and one box can still fail','Nothing at all','Network latency to users'],a:1,h:'Does a bigger machine become two machines?',x:'Vertical scaling is a real and useful first step. It does not add redundancy.'}
+    ]});
+})();
+/* ===== Level 3: more than one server ===== */
+(function(){
+  var H=SL.H,CAP=250,HEAVY=40,NREQ=600,SERVER_COST=45;
+  var S={users:300000,n:3,algo:'rr',heavy:10,sess:'stateful',health:true,lb:1,down:{}};
+  var root=null,cache={};
+  function q(s){return root.querySelector(s);}
+
+  function dist(algo,ids,heavy){
+    var key=algo+'|'+ids.join(',')+'|'+heavy;if(cache[key])return cache[key];
+    var r=H.prng(11),load={},tot=0,i,target;
+    ids.forEach(function(x){load[x]=0;});
+    for(i=0;i<NREQ;i++){
+      var cost=r()<heavy/100?HEAVY:1;
+      if(algo==='rr'){target=ids[i%ids.length];}
+      else if(algo==='least'){target=ids[0];ids.forEach(function(x){if(load[x]<load[target])target=x;});}
+      else{var u=Math.floor(Math.pow(r(),3)*300);target=ids[(Math.imul(u,2654435761)>>>0)%ids.length];}
+      load[target]+=cost;tot+=cost;
+    }
+    var out={};ids.forEach(function(x){out[x]=load[x]/tot;});
+    cache[key]=out;return out;
+  }
+  function calc(){
+    var n=S.n,rps=H.peakRps(S.users),idx=[],i;
+    for(i=0;i<n;i++)idx.push(i);
+    var downL=idx.filter(function(x){return S.down[x];}),up=idx.filter(function(x){return !S.down[x];});
+    var seen=S.health?up:idx,sh=seen.length?dist(S.algo,seen,S.heavy):{};
+    var util={},hottest=0,over=0,deadShare=0;
+    idx.forEach(function(x){
+      if(S.down[x]){util[x]=0;if(!S.health)deadShare+=sh[x]||0;return;}
+      util[x]=(sh[x]||0)*rps/CAP;hottest=Math.max(hottest,util[x]);
+      over+=(sh[x]||0)*Math.max(0,1-1/Math.max(util[x],1e-9));
+    });
+    var err=up.length?Math.min(1,deadShare+over):1;
+    var avg=up.length?rps/(up.length*CAP):Infinity;
+    var bounce=S.sess==='stateful'&&S.algo!=='sticky'&&up.length>1?(up.length-1)/up.length:0;
+    var lost=S.sess==='stateful'&&S.algo==='sticky'?downL.length/n:0;
+    var one=up.length>1&&rps/((up.length-1)*CAP)<1;
+    return {n:n,rps:rps,idx:idx,up:up,downL:downL,sh:sh,util:util,hottest:hottest,avg:avg,err:err,over:over,deadShare:deadShare,bounce:bounce,lost:lost,one:one,cap:up.length*CAP,
+      cost:n*SERVER_COST+S.lb*25};
+  }
+
+  var HTML=
+    '<div class="flow" id="top3"></div><div class="nodes" id="nodes3"></div>'+
+    '<div class="readouts"><div><div class="k">Peak req/s</div><div class="v" id="rps3">0</div></div><div><div class="k">Capacity</div><div class="v" id="cap3">0</div></div><div><div class="k">Cost / month</div><div class="v" id="cost3">$0</div></div></div>'+
+    H.usersSlider('u3',300000)+H.slider('n3','App servers',1,12,3)+
+    H.seg('algo','How the balancer picks',[{v:'rr',l:'Round robin'},{v:'least',l:'Least loaded'},{v:'sticky',l:'Sticky by user'}],'rr')+
+    H.slider('h3','Heavy requests (40× cost, like report exports)',0,30,10)+
+    H.seg('sess','Where sessions live',[{v:'stateful',l:'In server memory'},{v:'stateless',l:'Shared store'}],'stateful')+
+    H.seg('health','Health checks',[{v:'on',l:'On'},{v:'off',l:'Off'}],'on')+
+    H.seg('lb','Load balancers',[{v:'1',l:'One'},{v:'2',l:'A pair'}],'1')+
+    '<ul class="gauges" id="g3"></ul><p class="verdict" id="v3" aria-live="polite"></p>';
+
+  function init(el){
+    root=el;
+    H.bind(el,{
+      u3:function(v){S.users=H.logU(v);SL.refresh();},
+      n3:function(v){S.n=Number(v);SL.refresh();},
+      h3:function(v){S.heavy=Number(v);SL.refresh();}
+    });
+  }
+  function update(){
+    var c=calc(),i;
+    q('#u3').value=H.vOf(S.users);H.setText(root,'u3V',H.fmtN(S.users));
+    H.setText(root,'n3V',String(S.n));H.setText(root,'h3V',S.heavy+'%');
+    H.setText(root,'rps3',H.fmtRps(c.rps));H.setText(root,'cap3',H.fmtN(c.cap)+' req/s');H.setText(root,'cost3',H.money(c.cost));
+    ['algo','sess','health','lb'].forEach(function(k){H.syncSeg(root,k,k==='health'?(S.health?'on':'off'):k==='lb'?String(S.lb):S[k]);});
+    var lbSt=S.lb===2?'ok':'warn';
+    q('#top3').innerHTML='<div class="nd st-ok"><b>Users</b><span class="sub">'+H.fmtRps(c.rps)+' req/s</span></div><span class="arr">→</span>'+
+      '<div class="nd st-'+lbSt+'"><b>Load balancer</b><span class="sub">'+(S.lb===2?'2 instances':'1 instance')+'</span></div><span class="arr">→</span><div class="nd st-info"><b>'+c.up.length+' of '+c.n+' servers up</b><span class="sub">250 req/s each</span></div>';
+    var h='';
+    c.idx.forEach(function(x){
+      var dead=!!S.down[x],u=c.util[x],st=dead?'bad':u<0.7?'ok':u<1?'warn':'bad';
+      h+='<div class="nd st-'+st+(dead?' dead':'')+'"><b>Server '+(x+1)+'</b><div class="meter"><i style="width:'+Math.round(H.clamp(u,0,1)*100)+'%"></i></div><span class="sub">'+(dead?'down':H.pct(u)+' busy')+'</span>'+
+        '<button class="btn mini" style="margin-top:6px" data-act="lvl" data-k="kill" data-v="'+x+'" aria-pressed="'+dead+'">'+(dead?'Revive':'Kill')+'</button></div>';
+    });
+    q('#nodes3').innerHTML=h;
+    var g='',avgSt=c.up.length===0?'bad':c.avg<0.6?'ok':c.avg<1?'warn':'bad';
+    g+=H.gauge('Total capacity',c.up.length?H.pct(c.avg)+' of '+H.fmtN(c.cap)+' req/s':'no servers up',c.up.length?c.avg:1,avgSt,
+      avgSt==='ok'?'':avgSt==='warn'?'Little headroom left. One more failure could overload the rest.':'Demand is above total capacity.');
+    var hotSt=c.hottest<0.7?'ok':c.hottest<1?'warn':'bad';
+    g+=H.gauge('Hottest server',H.pct(c.hottest)+' busy (average '+H.pct(Math.min(c.avg,9.99))+')',c.hottest,hotSt,
+      c.hottest>c.avg*1.25&&c.up.length>1?'Load is uneven. Some servers work much harder than others.':'');
+    var errSt=c.err<0.001?'ok':c.err<0.05?'warn':'bad';
+    g+=H.gauge('Failed requests',H.pct(c.err),c.err*4,errSt,
+      c.deadShare>0?'Health checks are off, so the balancer still sends '+H.pct(c.deadShare)+' of traffic to dead servers.':c.over>0.001?'Some servers are past their limit and drop requests.':c.up.length===0?'Nothing is running.':'');
+    var sessSt=c.bounce>0.2||c.lost>0.2?'bad':c.bounce>0||c.lost>0?'warn':'ok';
+    g+=H.gauge('Login sessions',c.bounce>0?H.pct(c.bounce)+' of requests lack the user\'s session':c.lost>0?H.pct(c.lost)+' of users logged out':'no session problems',null,sessSt,
+      c.bounce>0?'Sessions live in one server\'s memory, but requests spread across all servers. Users get sent back to the login page.':c.lost>0?'Those servers took their users\' sessions with them.':'');
+    var redSt=c.up.length===0?'bad':c.one?'ok':'warn';
+    g+=H.gauge('Can lose one server',c.one?'yes':'no',null,redSt,c.one?'':c.up.length<=1?'There is no spare server.':'Without one server, the rest could not carry the load.');
+    g+=H.gauge('Load balancer',S.lb===2?'pair, one takes over':'single instance',null,S.lb===2?'ok':'warn',S.lb===2?'':'If this one machine fails, every server behind it is unreachable.');
+    q('#g3').innerHTML=g;
+    var v;
+    if(c.up.length===0)v='Every server is down. Nothing can answer.';
+    else if(c.err>=0.05)v=H.pct(c.err)+' of requests fail right now.';
+    else if(c.bounce>0.2)v='Capacity is fine, but users keep losing their sessions. This is the stateful servers problem.';
+    else if(avgSt==='bad')v='Add servers: demand is above capacity.';
+    else if(!c.one&&S.n>1)v='It works, but one failure would overload the rest.';
+    else v='Healthy. Servers share the load and survive losing one.';
+    H.setText(root,'v3',v);
+    SL.setMode(c.up.length+' of '+c.n+' servers up');
+  }
+  function apply(o){
+    if(o.users!==undefined)S.users=Math.max(1,Math.round(Number(o.users)));
+    if(o.n!==undefined)S.n=H.clamp(Math.round(Number(o.n)),1,12);
+    if(o.algo)S.algo=o.algo;
+    if(o.heavy!==undefined)S.heavy=Number(o.heavy);
+    if(o.sess)S.sess=o.sess;
+    if(o.health!==undefined)S.health=!!o.health;
+    if(o.lb!==undefined)S.lb=Number(o.lb);
+    if(o.down){S.down={};o.down.forEach(function(x){S.down[x]=true;});}
+  }
+  function act(k,v){
+    if(k==='algo')S.algo=v;else if(k==='sess')S.sess=v;else if(k==='health')S.health=v==='on';
+    else if(k==='lb')S.lb=Number(v);else if(k==='kill'){var x=Number(v);if(S.down[x])delete S.down[x];else S.down[x]=true;}
+  }
+  function initState(){S.users=300000;S.n=3;S.algo='rr';S.heavy=10;S.sess='stateful';S.health=true;S.lb=1;S.down={};}
+
+  SL.add({id:3,short:'Add a second server',title:'Add a second server',
+    tag:'One box broke at 144k users. Put several behind a load balancer and find out what that fixes and what it breaks.',
+    sim:{html:HTML,init:function(el){initState();init(el);},update:update,apply:apply,act:act},
+    steps:[
+      {t:'Why one box was not enough',dyn:true,
+       b:function(){var rps=H.peakRps(S.users),need=Math.ceil(rps/(CAP*0.6));
+         return '<p>Level 2 ended with a box that tops out near 250 req/s. The fix is to run several copies of the app and share the traffic. This is horizontal scaling.</p><div class="calc"><span>Peak load at '+H.fmtC(S.users)+' users</span><span>'+H.fmtRps(rps)+' req/s</span><span>One small server</span><span>250 req/s</span><span class="tot">Servers to stay at 60% busy</span><span class="tot">'+need+'</span></div><p>Why 60%? Headroom absorbs bursts and failures. Try 1,000,000 users and 12 servers.</p>';},
+       tries:[{l:'1M users, 12 servers',users:1000000,n:12,down:[]},{l:'Back to 3 servers',users:300000,n:3,down:[]}]},
+      {t:'What a load balancer does',dyn:true,
+       b:function(){var c=calc();
+         return '<p>The load balancer is the one public address. It accepts each request and forwards it to a healthy server.</p>'+
+         H.table(['Strategy','Good at','Watch out for'],[
+           {c:['Round robin','Simple, fair by request count','Ignores how heavy each request is']},
+           {c:['Least loaded','Evens out heavy and light requests','Needs the balancer to track work in flight']},
+           {c:['Sticky by user','Keeps a user on one server','Popular users overload one server']}])+
+         '<p>Right now the hottest server is at '+H.pct(c.hottest)+' and the average is '+H.pct(Math.min(c.avg,9.99))+'. Raise heavy requests and compare strategies.</p>';},
+       tries:[{l:'Round robin, 20% heavy, 6 servers',algo:'rr',heavy:20,n:6,users:600000,down:[]},{l:'Least loaded',algo:'least'},{l:'Sticky by user',algo:'sticky'}]},
+      {t:'Servers must forget users',dyn:true,
+       b:function(){var c=calc();
+         return '<p>If a server keeps your login session in its own memory, the next request may land on a server that has never heard of you. You get sent back to the login page.</p><p>Two fixes: stick every user to one server, or make the servers stateless. Stateless means the session lives in a shared store such as a cache or a signed cookie, so any server can handle any request.</p><p>Sticky helps until a server dies. Stateless survives it. Currently: '+(c.bounce>0?H.pct(c.bounce)+' of requests lose their session.':c.lost>0?H.pct(c.lost)+' of users are logged out.':'no session problems.')+'</p>';},
+       tries:[{l:'Sessions in memory, round robin',sess:'stateful',algo:'rr',down:[]},{l:'Sticky, then kill server 1',sess:'stateful',algo:'sticky',down:[0]},{l:'Shared session store',sess:'stateless',down:[]}]},
+      {t:'Health checks',dyn:true,
+       b:function(){var c=calc();
+         return '<p>Servers die. A health check is a small request the balancer sends every few seconds, for example "are you alive?". After a few failures it stops sending traffic to that server.</p><p>Without it, a dead server keeps receiving its share and every request sent there fails. Currently '+H.pct(c.err)+' of requests fail.</p>';},
+       tries:[{l:'Kill server 2, checks off',health:false,sess:'stateless',algo:'rr',down:[1]},{l:'Turn checks on',health:true},{l:'Revive everything',down:[]}]},
+      {t:'You moved the single point of failure',
+       b:function(){return '<p>You now have several app servers, but one load balancer in front of them. If it fails, nobody can reach any server.</p><p>The usual answer is a pair of balancers sharing one address, so a standby takes over, or a managed cloud balancer that runs across zones. The pattern repeats through the whole course: removing one weak point exposes the next one.</p>';},
+       tries:[{l:'One balancer',lb:1},{l:'A pair',lb:2}]},
+      {t:'What you can take away',
+       b:function(){return '<ul><li>Horizontal scaling means more machines, and it needs stateless servers.</li><li>Size for about 60% load so you can lose a server.</li><li>Least loaded beats round robin when request cost varies.</li><li>Health checks turn a dead server from an outage into a non-event.</li><li>Every fix creates a new weak point. Find it before users do.</li></ul><p>Next level: the database is still one machine. Move it onto its own server and see what that changes.</p>';}}
+    ],
+    quiz:[
+      {q:'You add a second server, round robin, and keep sessions in each server\'s memory. What do users see?',o:['Faster pages','Random logouts, because requests land on servers without their session','Nothing changes','Duplicate orders'],a:1,h:'Where does each server keep its sessions?',x:'Each server only knows its own sessions. Make servers stateless or stick users to one server.'},
+      {q:'What does a health check do?',o:['Speeds up the database','Removes dead servers from rotation so users are not sent to them','Encrypts traffic','Deletes old sessions'],a:1,h:'Think about what happens to requests sent to a dead machine.',x:'The balancer stops routing to a server that fails its checks.'},
+      {q:'After adding a load balancer, what is still a single point of failure?',o:['Nothing','The app servers','The load balancer itself, unless you run more than one','The users'],a:2,h:'What sits in front of every server?',x:'A single balancer is a new single point of failure. Run a pair or a managed multi-zone balancer.'},
+      {q:'Why plan to run servers at about 60% busy?',o:['It saves money','Headroom lets the rest absorb traffic when one server fails','Servers break above 60%','The balancer requires it'],a:1,h:'What happens to the other servers when one dies?',x:'If three servers run at 90% and one dies, the other two must carry 135% each, so the system overloads.'}
+    ]});
+})();
+/* ===== Level 4: pull the database out ===== */
+(function(){
+  var H=SL.H,SZ=H.SIZES,APP_CAP=250,QPS_CORE=800;
+  var S={users:1000000,apps:12,db:'S',pool:20,pooler:false,qpr:5,rtt:1,backup:'nightly',dbDown:false};
+  var root=null;
+  function q(s){return root.querySelector(s);}
+  var LOSS={none:'everything since launch',nightly:'up to 24 hours of data',continuous:'a few seconds of data'};
+
+  function calc(){
+    var rps=H.peakRps(S.users),d=SZ[S.db];
+    var appU=rps/(S.apps*APP_CAP),qps=rps*S.qpr,dbCap=d.cores*QPS_CORE,dbU=qps/dbCap;
+    var appT=15/(1-Math.min(appU,0.995)),dbQ=5/(1-Math.min(dbU,0.995));
+    var net=S.qpr*S.rtt,dbT=S.qpr*dbQ,mean=appT+net+dbT,p95=Math.min(mean*3,30000);
+    var demand=S.apps*S.pool,eff=S.pooler?Math.min(demand,50):demand,cr=eff/d.pool;
+    var dataGB=S.users*5e-5,restore=Math.max(120,dataGB*60);
+    return {rps:rps,appU:appU,qps:qps,dbCap:dbCap,dbU:dbU,appT:appT,dbQ:dbQ,net:net,dbT:dbT,mean:mean,p95:p95,demand:demand,eff:eff,cr:cr,d:d,dataGB:dataGB,restore:restore,
+      cost:S.apps*45+d.cost+25+(S.pooler?30:0)};
+  }
+  var HTML=
+    '<div class="flow" id="fl4"></div>'+
+    '<label class="ctl">Where one request spends its time</label><div id="stk4"></div><div class="legend"><span style="--c:var(--accent)">App</span><span style="--c:var(--warn)">Network hops</span><span style="--c:var(--ink-2)">Database</span></div>'+
+    '<div class="readouts"><div><div class="k">Queries/s</div><div class="v" id="qps4">0</div></div><div><div class="k">p95 time</div><div class="v" id="lat4">0</div></div><div><div class="k">Cost / month</div><div class="v" id="cost4">$0</div></div></div>'+
+    H.usersSlider('u4',1000000)+H.slider('a4','App servers',1,20,12)+
+    H.seg('db','Database server',[{v:'S',l:'Small'},{v:'M',l:'Medium'},{v:'L',l:'Large'},{v:'XL',l:'Huge'}],'S')+
+    H.slider('p4','Connections kept per app server',5,50,20,5)+
+    H.seg('pooler','Connection pooler in front of the database',[{v:'off',l:'Off'},{v:'on',l:'On'}],'off')+
+    H.slider('q4','Database queries per request',1,60,5)+
+    H.seg('rtt','Distance app to database',[{v:'0.3',l:'Same rack 0.3 ms'},{v:'1',l:'Same zone 1 ms'},{v:'2',l:'Other zone 2 ms'},{v:'60',l:'Other region 60 ms'}],'1')+
+    H.seg('backup','Backups',[{v:'none',l:'None'},{v:'nightly',l:'Nightly'},{v:'continuous',l:'Continuous'}],'nightly')+
+    '<div class="row"><button class="btn danger" id="kdb" data-act="lvl" data-k="dbdown" aria-pressed="false">Lose the database disk</button></div>'+
+    '<ul class="gauges" id="g4"></ul><p class="verdict" id="v4" aria-live="polite"></p>';
+
+  function init(el){
+    root=el;
+    H.bind(el,{u4:function(v){S.users=H.logU(v);SL.refresh();},a4:function(v){S.apps=Number(v);SL.refresh();},p4:function(v){S.pool=Number(v);SL.refresh();},q4:function(v){S.qpr=Number(v);SL.refresh();}});
+  }
+  function update(){
+    var c=calc(),down=S.dbDown;
+    q('#u4').value=H.vOf(S.users);H.setText(root,'u4V',H.fmtN(S.users));H.setText(root,'a4V',String(S.apps));H.setText(root,'p4V',String(S.pool));H.setText(root,'q4V',String(S.qpr));
+    H.setText(root,'qps4',H.fmtN(c.qps));H.setText(root,'lat4',down?'fails':H.fmtMs(c.p95));H.setText(root,'cost4',H.money(c.cost));
+    ['db','backup','rtt'].forEach(function(k){H.syncSeg(root,k,S[k]);});H.syncSeg(root,'pooler',S.pooler?'on':'off');
+    var stU=function(u){return u<0.7?'ok':u<1?'warn':'bad';},stC=c.cr<0.7?'ok':c.cr<1?'warn':'bad',stL=c.p95<500?'ok':c.p95<1500?'warn':'bad';
+    var dbSt=down?'bad':H.worst([stU(c.dbU),stC]);
+    q('#fl4').innerHTML='<div class="nd st-ok"><b>Users</b><span class="sub">'+H.fmtRps(c.rps)+' req/s</span></div><span class="arr">→</span>'+
+      '<div class="nd st-'+stU(c.appU)+'"><b>'+S.apps+' app servers</b><div class="meter"><i style="width:'+Math.round(H.clamp(c.appU,0,1)*100)+'%"></i></div><span class="sub">'+H.pct(c.appU)+' busy</span></div><span class="arr">→</span>'+
+      (S.pooler?'<div class="nd st-ok"><b>Pooler</b><span class="sub">'+c.eff+' connections</span></div><span class="arr">→</span>':'')+
+      '<div class="nd st-'+dbSt+(down?' dead':'')+'"><b>Database</b><div class="meter"><i style="width:'+Math.round(H.clamp(c.dbU,0,1)*100)+'%"></i></div><span class="sub">'+(down?'disk lost':c.d.name+' · '+H.pct(c.dbU)+' busy')+'</span></div>';
+    var tot=c.appT+c.net+c.dbT;
+    q('#stk4').innerHTML=H.stack([{w:c.appT/tot*100,c:'var(--accent)'},{w:c.net/tot*100,c:'var(--warn)'},{w:c.dbT/tot*100,c:'var(--ink-2)'}])+
+      '<p class="small">'+H.fmtMs(c.appT)+' app + '+H.fmtMs(c.net)+' network + '+H.fmtMs(c.dbT)+' database = '+H.fmtMs(c.mean)+' average</p>';
+    var g='';
+    g+=H.gauge('App tier CPU',H.pct(c.appU),Math.min(1,c.appU),stU(c.appU),stU(c.appU)==='bad'?'Add app servers. They are cheap and identical.':'');
+    g+=H.gauge('Database CPU',H.fmtN(c.qps)+' of '+H.fmtN(c.dbCap)+' queries/s',Math.min(1,c.dbU),stU(c.dbU),stU(c.dbU)==='ok'?'':'The database must answer every query from every app server. Unlike the app tier, you cannot just add copies.');
+    g+=H.gauge('Open connections',c.eff+' of '+c.d.pool+' allowed ('+S.apps+' × '+S.pool+(S.pooler?', pooled':'')+')',Math.min(1,c.cr),stC,stC==='ok'?'':'Every app server holds a pool of connections. More app servers means more connections, and the database refuses the extra ones.');
+    g+=H.gauge('Response time (p95)',H.fmtMs(c.p95)+' (goal under 500 ms)',Math.min(1,c.p95/1500),stL,c.net>c.appT+c.dbT&&c.net>50?'Most of the time is spent crossing the network between app and database.':'');
+    g+=H.gauge('Data protection',S.backup==='none'?'no backups':S.backup==='nightly'?'nightly snapshot':'continuous log',null,S.backup==='none'?'bad':S.backup==='nightly'?'warn':'ok',(S.backup==='none'?'If the database disk is lost, all data is gone and there is nothing to restore from.':'If the database disk is lost you lose '+LOSS[S.backup]+'. Restoring '+H.fmtData(c.dataGB)+' takes about '+H.fmtDur(c.restore)+'.'));
+    g+=H.gauge('Database redundancy','1 database, 0 spares',null,down?'bad':'warn','Everything depends on this one machine. The next levels deal with that.');
+    q('#g4').innerHTML=g;
+    var v;
+    if(down)v=S.backup==='none'?'The disk is gone and there are no backups. Every record is lost for good.':'The disk is gone. You lose '+LOSS[S.backup]+' and the app is down for about '+H.fmtDur(c.restore)+' while the backup restores.';
+    else if(stU(c.dbU)==='bad')v='The app tier is fine. The database is the bottleneck at '+H.fmtN(c.qps)+' queries/s.';
+    else if(stC==='bad')v='The database is refusing connections. Reduce pool sizes or add a pooler.';
+    else if(stL==='bad')v='Requests are slow. Check where the time goes in the bar above.';
+    else v='Healthy. App servers and database each have headroom.';
+    H.setText(root,'v4',v);
+    var kb=q('#kdb');kb.setAttribute('aria-pressed',String(down));kb.textContent=down?'Restore from backup':'Lose the database disk';
+    SL.setMode(down?'database down':S.apps+' apps + 1 database');
+  }
+  function apply(o){
+    if(o.users!==undefined)S.users=Math.max(1,Math.round(Number(o.users)));
+    if(o.apps!==undefined)S.apps=H.clamp(Number(o.apps),1,20);
+    if(o.db)S.db=o.db;if(o.pool!==undefined)S.pool=Number(o.pool);
+    if(o.pooler!==undefined)S.pooler=!!o.pooler;if(o.qpr!==undefined)S.qpr=Number(o.qpr);
+    if(o.rtt!==undefined)S.rtt=Number(o.rtt);if(o.backup)S.backup=o.backup;if(o.dbDown!==undefined)S.dbDown=!!o.dbDown;
+  }
+  function act(k,v){
+    if(k==='db')S.db=v;else if(k==='pooler')S.pooler=v==='on';else if(k==='rtt')S.rtt=Number(v);
+    else if(k==='backup')S.backup=v;else if(k==='dbdown')S.dbDown=!S.dbDown;
+  }
+  function initState(){S.users=1000000;S.apps=12;S.db='S';S.pool=20;S.pooler=false;S.qpr=5;S.rtt=1;S.backup='nightly';S.dbDown=false;}
+
+  SL.add({id:4,short:'Pull the database out',title:'Pull the database out',
+    tag:'Put the database on its own machine so the app tier can multiply. Then watch the database become the next bottleneck.',
+    sim:{html:HTML,init:function(el){initState();init(el);},update:update,apply:apply,act:act},
+    steps:[
+      {t:'Why give the database its own machine',
+       b:function(){return '<p>App servers are interchangeable. Any copy can answer any request, so you add more when traffic grows and throw one away when it fails.</p><p>A database is different. It holds the one true copy of your data. You cannot spin up a second copy and let both accept writes without extra machinery, because the copies would disagree.</p><p>So the database moves to its own server, sized for database work: lots of RAM, fast disk, and nothing else competing for them. The app servers around it become disposable.</p>';}},
+      {t:'The new bottleneck',dyn:true,
+       b:function(){var c=calc();
+         return '<p>Every request runs several queries. The app tier scales by adding servers, so the load all lands on the one database.</p><div class="calc"><span>Peak requests at '+H.fmtC(S.users)+' users</span><span>'+H.fmtRps(c.rps)+' /s</span><span>× '+S.qpr+' queries per request</span><span>'+H.fmtN(c.qps)+' queries/s</span><span>One '+c.d.name.toLowerCase()+' database handles</span><span>'+H.fmtN(c.dbCap)+' queries/s</span><span class="tot">CPU cores needed</span><span class="tot">'+Math.ceil(c.qps/QPS_CORE)+'</span></div><p>Twelve app servers keep up, and the small database is overwhelmed. Try the bigger sizes.</p>';},
+       tries:[{l:'Small database',db:'S'},{l:'Large database',db:'L'},{l:'Huge database',db:'XL'}]},
+      {t:'Connections multiply',dyn:true,
+       b:function(){var c=calc();
+         return '<p>Each app server keeps a pool of open database connections so it does not reconnect on every request. The totals add up fast: '+S.apps+' servers × '+S.pool+' connections = '+c.demand+'. This database allows '+c.d.pool+'.</p><p>A connection pooler sits between the apps and the database. Thousands of app connections share a few dozen real ones. It is a standard part of this design.</p>';},
+       tries:[{l:'20 apps, 50 each, no pooler',apps:20,pool:50,pooler:false,db:'L'},{l:'Add a pooler',pooler:true}]},
+      {t:'Network hops add up',dyn:true,
+       b:function(){var c=calc();
+         return '<p>In Level 1 the database call was a function call. Now every query crosses a network. One millisecond sounds small until a page runs 50 queries: '+S.qpr+' queries × '+S.rtt+' ms = '+H.fmtMs(c.net)+' of waiting before any real work.</p><p>The classic bug is the N+1 query: load a list, then run one more query per row. Fix it with a join, a batch query or a cache.</p>';},
+       tries:[{l:'5 queries, same zone',users:100000,apps:4,db:'L',pooler:true,qpr:5,rtt:1},{l:'50 queries (N+1 bug)',qpr:50,rtt:1},{l:'50 queries, other zone',qpr:50,rtt:2},{l:'Use a batch (3 queries)',qpr:3,rtt:2}]},
+      {t:'Backups and what you can lose',dyn:true,
+       b:function(){var c=calc();
+         return '<p>The database is where your data lives. Two numbers describe a failure.</p><ul><li><b>Data you lose</b> (recovery point). Nightly backups can lose a day. Continuous log shipping can lose seconds.</li><li><b>Time to recover</b> (recovery time). Restoring '+H.fmtData(c.dataGB)+' takes about '+H.fmtDur(c.restore)+' here.</li></ul><p>A backup you have never restored is a hope, not a backup. Practice the restore.</p>';},
+       tries:[{l:'No backups, lose the disk',backup:'none',dbDown:true},{l:'Nightly',backup:'nightly'},{l:'Continuous',backup:'continuous'},{l:'Restore',dbDown:false}]},
+      {t:'What you can take away',
+       b:function(){return '<ul><li>App servers scale out. The database does not, at least not by copying it.</li><li>More app servers means more database connections. Plan for a pooler.</li><li>Network hops make chatty code slow. Count queries per request.</li><li>Decide how much data you can lose and how long you can be down, then pick backups to match.</li></ul><p>Next level: most queries ask for the same things again and again. Cache them and the database sees a fraction of the load.</p>';}}
+    ],
+    quiz:[
+      {q:'Why can\'t you scale the database by just running more copies like you do with app servers?',o:['Databases are always single threaded','The copies would disagree about the data, so you need replication or sharding','Cloud providers forbid it','Databases do not use CPU'],a:1,h:'Think about two copies accepting different writes.',x:'The database holds the single source of truth. Copying it safely needs replication, which later levels cover.'},
+      {q:'20 app servers each keep 20 database connections. The database allows 100. What happens?',o:['Everything is fine','Connections are refused. Use smaller pools or a connection pooler','The database gets faster','The app servers shut down'],a:1,h:'Multiply 20 by 20.',x:'400 connections are requested against 100 allowed. A pooler lets many app connections share a few real ones.'},
+      {q:'A page runs 50 small queries to a database 2 ms away. Roughly how much time goes to the network alone?',o:['About 2 ms','About 10 ms','About 100 ms','About 1 s'],a:2,h:'Multiply queries by the distance.',x:'50 × 2 ms is 100 ms of waiting. Batch the queries or cache the results.'},
+      {q:'You take nightly backups. The disk dies at 5 pm. What do you lose?',o:['Nothing','Up to a day of data','Only the last second','Only the user table'],a:1,h:'When was the last snapshot taken?',x:'You can lose everything since the last snapshot. Continuous log shipping cuts that to seconds.'}
+    ]});
+})();
+/* ===== Level 5: caching ===== */
+(function(){
+  var H=SL.H,DBCAP=6400,QPR=5,EXP={flat:0.9,typical:0.25,heavy:0.1};
+  var S={users:1000000,cv:170,skew:'typical',tv:178,read:90,cacheUp:true,inv:true,coal:false};
+  var root=null;
+  function q(s){return root.querySelector(s);}
+  function cpct(){return Math.pow(10,S.cv/100-1);}
+  function ttl(){return Math.max(1,Math.round(Math.pow(10,S.tv/100)));}
+  function fmtTtl(t){return t<60?t+' s':t<3600?Math.round(t/60)+' min':(t/3600).toFixed(1).replace(/\.0$/,'')+' h';}
+
+  function calc(){
+    var rps=H.peakRps(S.users),qps=rps*QPR,f=cpct()/100,T=ttl();
+    var hit0=S.cacheUp?Math.min(1,Math.pow(f,EXP[S.skew])):0,hit=hit0*T/(T+5);
+    var readQ=qps*S.read/100,cached=readQ*hit,dbQps=qps-cached,dbU=dbQps/DBCAP;
+    var dbq=5/(1-Math.min(dbU,0.995)),avgQ=(cached*1+dbQps*dbq)/qps,reqMs=15+QPR*avgQ;
+    var dataGB=S.users*5e-5,cacheGB=f*dataGB,noCacheU=qps/DBCAP;
+    var hotQ=readQ*0.08,misses=S.coal?1:hotQ*0.5,burst=misses*20/(DBCAP*0.5);
+    return {rps:rps,qps:qps,f:f,T:T,hit0:hit0,hit:hit,readQ:readQ,cached:cached,dbQps:dbQps,dbU:dbU,reqMs:reqMs,dataGB:dataGB,cacheGB:cacheGB,cost:cacheGB*10,noCacheU:noCacheU,hotQ:hotQ,misses:misses,burst:burst};
+  }
+  var HTML=
+    '<div class="flow" id="fl5"></div>'+
+    '<div class="readouts"><div><div class="k">Cache hit ratio</div><div class="v" id="hit5">0%</div></div><div><div class="k">DB queries/s</div><div class="v" id="dbq5">0</div></div><div><div class="k">Avg request</div><div class="v" id="ms5">0</div></div></div>'+
+    H.usersSlider('u5',1000000)+
+    H.slider('c5','Cache size (% of all data)',0,300,170)+
+    H.seg('skew','Traffic skew',[{v:'flat',l:'Flat'},{v:'typical',l:'Typical'},{v:'heavy',l:'A few hot items'}],'typical')+
+    H.slider('t5','Time to live (TTL)',0,356,178)+
+    H.slider('r5','Reads (% of queries)',50,99,90)+
+    H.seg('inv','Delete cache entry on write',[{v:'on',l:'On'},{v:'off',l:'Off'}],'on')+
+    H.seg('coal','Request coalescing',[{v:'off',l:'Off'},{v:'on',l:'On'}],'off')+
+    H.seg('cache','Cache server',[{v:'up',l:'Running'},{v:'down',l:'Down'}],'up')+
+    '<ul class="gauges" id="g5"></ul><p class="verdict" id="v5" aria-live="polite"></p>';
+
+  function init(el){
+    root=el;
+    H.bind(el,{u5:function(v){S.users=H.logU(v);SL.refresh();},c5:function(v){S.cv=Number(v);SL.refresh();},t5:function(v){S.tv=Number(v);SL.refresh();},r5:function(v){S.read=Number(v);SL.refresh();}});
+  }
+  function update(){
+    var c=calc(),pct=cpct();
+    q('#u5').value=H.vOf(S.users);H.setText(root,'u5V',H.fmtN(S.users));
+    q('#c5').value=S.cv;H.setText(root,'c5V',(pct<1?pct.toFixed(2):pct<10?pct.toFixed(1):Math.round(pct))+'%');
+    q('#t5').value=S.tv;H.setText(root,'t5V',fmtTtl(c.T));H.setText(root,'r5V',S.read+'%');
+    H.syncSeg(root,'skew',S.skew);H.syncSeg(root,'inv',S.inv?'on':'off');H.syncSeg(root,'coal',S.coal?'on':'off');H.syncSeg(root,'cache',S.cacheUp?'up':'down');
+    H.setText(root,'hit5',H.pct(c.hit));H.setText(root,'dbq5',H.fmtN(c.dbQps));H.setText(root,'ms5',H.fmtMs(c.reqMs));
+    var dbSt=c.dbU<0.7?'ok':c.dbU<1?'warn':'bad';
+    q('#fl5').innerHTML='<div class="nd st-ok"><b>App servers</b><span class="sub">'+H.fmtN(c.qps)+' queries/s</span></div><span class="arr">→</span>'+
+      '<div class="nd st-'+(S.cacheUp?'ok':'bad')+(S.cacheUp?'':' dead')+'"><b>Cache</b><div class="meter"><i style="width:'+Math.round(c.hit*100)+'%"></i></div><span class="sub">'+(S.cacheUp?H.pct(c.hit)+' hits · '+H.fmtData(c.cacheGB):'down')+'</span></div><span class="arr">→</span>'+
+      '<div class="nd st-'+dbSt+'"><b>Database</b><div class="meter"><i style="width:'+Math.round(H.clamp(c.dbU,0,1)*100)+'%"></i></div><span class="sub">'+H.pct(c.dbU)+' busy</span></div>';
+    var g='';
+    g+=H.gauge('Database load',H.fmtN(c.dbQps)+' of '+H.fmtN(DBCAP)+' queries/s',Math.min(1,c.dbU),dbSt,dbSt==='ok'?'':'The database is still carrying too much. Raise the hit ratio.');
+    g+=H.gauge('Cache hit ratio',H.pct(c.hit)+' of reads',c.hit,c.hit>=0.8?'ok':c.hit>=0.5?'warn':'bad',c.cacheUp?'':'The cache is down, so every read goes to the database.');
+    g+=H.gauge('Average request time',H.fmtMs(c.reqMs),Math.min(1,c.reqMs/500),c.reqMs<200?'ok':c.reqMs<500?'warn':'bad','');
+    g+=H.gauge('Freshness',S.inv?'fresh after writes':'up to '+fmtTtl(c.T)+' old',null,S.inv?'ok':c.T>300?'warn':'ok',
+      S.inv?'Writes delete the cached copy, so the next read refetches. The TTL of '+fmtTtl(c.T)+' is a safety net for missed deletes.':'Nothing removes stale entries except the TTL. Users may see old data for up to '+fmtTtl(c.T)+'.');
+    g+=H.gauge('Cache memory',H.fmtData(c.cacheGB)+' (about '+H.money(c.cost)+'/mo)',null,'info','Memory costs more than disk, so cache the hot part of the data, not all of it.');
+    var nc=c.noCacheU<1?'ok':'bad';
+    g+=H.gauge('If the cache restarts empty',H.pct(c.noCacheU)+' database load',Math.min(1,c.noCacheU),nc,nc==='ok'?'':'The database cannot survive without the cache. A restart or crash would take everything down.');
+    var bs=c.burst<0.7?'ok':c.burst<1?'warn':'bad';
+    g+=H.gauge('Hot entry expires',H.fmtN(c.misses)+' identical queries at once',Math.min(1,c.burst),bs,bs==='ok'?(S.coal?'Only one request rebuilds the entry. The others wait for it.':''):'Hundreds of requests miss together and all hit the database. This is a cache stampede.');
+    q('#g5').innerHTML=g;
+    var v;
+    if(!S.cacheUp)v='The cache is down. The database now sees '+H.pct(c.noCacheU)+' of its capacity.';
+    else if(dbSt==='bad')v='The database is overloaded even with a '+H.pct(c.hit)+' hit ratio. Grow the cache or check the skew.';
+    else v='The cache absorbs '+H.pct(c.hit*S.read/100)+' of all queries. The database sees '+H.pct(c.dbQps/c.qps)+' of them.';
+    H.setText(root,'v5',v);
+    SL.setMode(S.cacheUp?H.pct(c.hit)+' hits':'cache down');
+  }
+  function apply(o){
+    if(o.users!==undefined)S.users=Math.max(1,Math.round(Number(o.users)));
+    if(o.cpct!==undefined)S.cv=H.clamp(Math.round((Math.log10(Number(o.cpct))+1)*100),0,300);
+    if(o.skew)S.skew=o.skew;
+    if(o.ttl!==undefined)S.tv=H.clamp(Math.round(Math.log10(Number(o.ttl))*100),0,356);
+    if(o.read!==undefined)S.read=Number(o.read);
+    if(o.inv!==undefined)S.inv=!!o.inv;if(o.coal!==undefined)S.coal=!!o.coal;if(o.cache!==undefined)S.cacheUp=!!o.cache;
+  }
+  function act(k,v){
+    if(k==='skew')S.skew=v;else if(k==='inv')S.inv=v==='on';else if(k==='coal')S.coal=v==='on';else if(k==='cache')S.cacheUp=v==='up';
+  }
+  function initState(){S.users=1000000;S.cv=170;S.skew='typical';S.tv=178;S.read=90;S.cacheUp=true;S.inv=true;S.coal=false;}
+
+  SL.add({id:5,short:'Caching',title:'Caching',
+    tag:'The same questions get asked over and over. Answer them from fast memory and the database sees a fraction of the load.',
+    sim:{html:HTML,init:function(el){initState();init(el);},update:update,apply:apply,act:act},
+    steps:[
+      {t:'Why caching works',dyn:true,
+       b:function(){var c=calc();
+         return '<p>Traffic is not spread evenly. A small set of items gets most of the requests: popular products, the front page, a viral post. A cache keeps those hot items in memory next to the app.</p><p>With a cache holding '+H.pct(c.f)+' of all data, the hit ratio is '+H.pct(c.hit)+'. The database handles '+H.fmtN(c.dbQps)+' queries/s instead of '+H.fmtN(c.qps)+'.</p><p>Set the skew to Flat and watch the benefit shrink. A cache only helps when some items are asked for more than others.</p>';},
+       tries:[{l:'Typical skew, 5% cache',skew:'typical',cpct:5},{l:'Flat skew',skew:'flat'},{l:'A few hot items',skew:'heavy'}]},
+      {t:'Where to cache',
+       b:function(){return '<p>Caches stack. A request should stop at the first layer that can answer it.</p>'+H.table(['Layer','Typical time','Good for'],[
+         {c:['Browser and CDN','0 to 30 ms','Images, scripts, public pages']},
+         {c:['App server memory','microseconds','Small, rarely changing data such as settings']},
+         {c:['Shared cache (Redis, Memcached)','about 1 ms','Sessions, profiles, computed results shared by all servers']},
+         {c:['Database buffer','automatic','The database already caches recently used pages']}])+'<p>This level uses the shared cache because every app server can use it.</p>';}},
+      {t:'Size and skew',dyn:true,
+       b:function(){var c=calc();
+         return '<p>Hit ratio rises quickly at first, then flattens. Doubling a small cache helps a lot. Doubling a large cache helps a little.</p><p>Now: '+H.pct(c.f)+' of data cached gives '+H.pct(c.hit0)+' hits before TTL effects, costing about '+H.money(c.cost)+' a month in memory.</p>';},
+       tries:[{l:'0.5% cache',cpct:0.5},{l:'5% cache',cpct:5},{l:'50% cache',cpct:50}]},
+      {t:'TTL and invalidation',dyn:true,
+       b:function(){var c=calc();
+         return '<p>There are two hard problems in computing: naming things, and cache invalidation. A cached copy can go stale the moment the database changes.</p><p>Two tools control it. A TTL (time to live) expires entries after a set time. Invalidation removes an entry when the data changes.</p>'+
+         H.table(['Pattern','Write path','Trade-off'],[
+           {c:['Cache-aside','Write the database, delete the cache entry','Most common. A short window of staleness is possible']},
+           {c:['Write-through','Write cache and database together','Always fresh, slower writes']},
+           {c:['Write-behind','Write cache now, database later','Fast writes, data loss if the cache dies first']}])+
+         '<p>A very short TTL of '+fmtTtl(c.T)+' lowers the hit ratio. A very long one keeps old data. Try both.</p>';},
+       tries:[{l:'TTL 2 s',ttl:2},{l:'TTL 1 min',ttl:60},{l:'TTL 1 hour, no delete on write',ttl:3600,inv:false}]},
+      {t:'When the cache itself fails',dyn:true,
+       b:function(){var c=calc();
+         return '<p>Two failures matter.</p><ul><li><b>Stampede.</b> A hot entry expires and hundreds of requests miss at once. All of them query the database for the same thing. Fixes: let one request rebuild while others wait (coalescing), add random jitter to TTLs, refresh popular entries before they expire.</li><li><b>Cold start.</b> If the cache restarts empty, the database suddenly sees all the traffic. At this load that is '+H.pct(c.noCacheU)+' of its capacity.</li></ul><p>If the database cannot survive without the cache, the cache is no longer an optimisation. It is a dependency.</p>';},
+       tries:[{l:'Stampede, no coalescing',coal:false,cache:true},{l:'Turn coalescing on',coal:true},{l:'Kill the cache',cache:false},{l:'Bring it back',cache:true}]},
+      {t:'What you can take away',
+       b:function(){return '<ul><li>Caches work because traffic is skewed. Measure the skew before you build.</li><li>Cache the hot part, not everything. Memory is expensive.</li><li>Pick TTL and invalidation together. Staleness is a product decision.</li><li>Defend the database from stampedes and cold starts.</li></ul><p>Next level: even with a cache, writes and cache misses still hit one database. Copy it to more machines with replication.</p>';}}
+    ],
+    quiz:[
+      {q:'Caching just 5% of the data can serve far more than 5% of requests. Why?',o:['Memory is faster than disk','Access is skewed: a small set of items gets most of the traffic','The cache compresses data','Requests are cached by the browser'],a:1,h:'Think about popular items versus the long tail.',x:'Real traffic is skewed. If every item were equally popular, a 5% cache would serve about 5% of requests.'},
+      {q:'A popular cache entry expires and 500 requests miss at once. What is this called and what helps?',o:['A cold start: restart the cache','A stampede: let one request rebuild while others wait, and jitter TTLs','A split brain: add replicas','A memory leak: add RAM'],a:1,h:'Many requests, one expired key.',x:'A cache stampede. Coalescing, jittered expiry and early refresh keep the database safe.'},
+      {q:'Your database only survives because the cache absorbs 90% of reads. What is the risk?',o:['None, caches never fail','If the cache restarts empty, the database receives all traffic and can fall over','The cache will fill up','Users see old data'],a:1,h:'What happens in the minute after a cache restart?',x:'A cold cache sends the full load to the database. Warm caches gradually and protect the database with limits.'},
+      {q:'You raise the TTL from 1 minute to 1 hour. What is the trade-off?',o:['Higher hit ratio but staler data','Lower hit ratio and staler data','Higher hit ratio and fresher data','No change'],a:0,h:'Entries live longer.',x:'Longer TTLs keep entries around, which raises hits and also lets old data live longer.'}
+    ]});
+})();
+/* ===== Level 6: replication and failover ===== */
+(function(){
+  var H=SL.H,NODE=8000,NODE_COST=780;
+  var S={users:1000000,r:2,read:90,use:true,sync:'async',fo:'auto',down:false};
+  var root=null;
+  function q(s){return root.querySelector(s);}
+
+  function calc(){
+    var Q=H.peakRps(S.users)*5,reads=Q*S.read/100,writes=Q-reads,r=S.r,use=r>0&&S.use;
+    var pU=(writes+(use?0:reads))/NODE,rLoad=r>0?(use?reads/r:0)+writes*0.5:0,rU=rLoad/NODE;
+    var lag=r>0&&S.sync==='async'?20/(1-Math.min(rU,0.99)):0;
+    var wMs=3/(1-Math.min(pU,0.99))+(S.sync==='sync'&&r>0?4:0);
+    var stale=use&&S.sync==='async'?Math.min(1,lag/300):0;
+    var dataGB=S.users*5e-5,restore=Math.max(120,dataGB*60);
+    var downtime=r===0?restore:(S.fo==='auto'?30:900);
+    var failedW=writes*downtime,lostAck=r>0&&S.sync==='async'?writes*lag/1000:0;
+    return {Q:Q,reads:reads,writes:writes,use:use,pU:pU,rU:rU,lag:lag,wMs:wMs,stale:stale,dataGB:dataGB,restore:restore,downtime:downtime,failedW:failedW,lostAck:lostAck,cost:(r+1)*NODE_COST};
+  }
+  var HTML=
+    '<div class="flow" id="fl6"></div><div class="nodes" id="rep6"></div>'+
+    '<div class="readouts"><div><div class="k">Reads/s</div><div class="v" id="rd6">0</div></div><div><div class="k">Writes/s</div><div class="v" id="wr6">0</div></div><div><div class="k">Cost / month</div><div class="v" id="cost6">$0</div></div></div>'+
+    H.usersSlider('u6',1000000)+H.slider('r6','Read replicas',0,5,2)+H.slider('rd6','Reads (% of queries)',50,99,90)+
+    H.seg('use','Send reads to',[{v:'primary',l:'Primary only'},{v:'replicas',l:'Replicas'}],'replicas')+
+    H.seg('sync','Replication',[{v:'async',l:'Asynchronous'},{v:'sync',l:'Synchronous'}],'async')+
+    H.seg('fo','Failover',[{v:'auto',l:'Automatic'},{v:'manual',l:'Manual'}],'auto')+
+    '<div class="row"><button class="btn danger" id="kp6" data-act="lvl" data-k="kill" aria-pressed="false">Kill the primary</button></div>'+
+    '<ul class="gauges" id="g6"></ul><p class="verdict" id="v6" aria-live="polite"></p>';
+
+  function init(el){
+    root=el;
+    H.bind(el,{u6:function(v){S.users=H.logU(v);SL.refresh();},r6:function(v){S.r=Number(v);SL.refresh();},rd6:function(v){S.read=Number(v);SL.refresh();}});
+  }
+  function st(u){return u<0.7?'ok':u<1?'warn':'bad';}
+  function update(){
+    var c=calc(),r=S.r;
+    q('#u6').value=H.vOf(S.users);H.setText(root,'u6V',H.fmtN(S.users));H.setText(root,'r6V',String(r));H.setText(root,'rd6V',S.read+'%');
+    H.syncSeg(root,'use',S.use?'replicas':'primary');H.syncSeg(root,'sync',S.sync);H.syncSeg(root,'fo',S.fo);
+    H.setText(root,'rd6',H.fmtN(c.reads));H.setText(root,'wr6',H.fmtN(c.writes));H.setText(root,'cost6',H.money(c.cost));
+    var pst=S.down?'bad':st(c.pU);
+    q('#fl6').innerHTML='<div class="nd st-ok"><b>App servers</b><span class="sub">'+H.fmtN(c.Q)+' queries/s</span></div><span class="arr">→</span>'+
+      '<div class="nd st-'+pst+(S.down?' dead':'')+'"><b>Primary</b><div class="meter"><i style="width:'+Math.round(H.clamp(c.pU,0,1)*100)+'%"></i></div><span class="sub">'+(S.down?'down':H.pct(c.pU)+' busy')+'</span></div>';
+    var h='',i;
+    for(i=0;i<r;i++){
+      var promo=S.down&&i===0;
+      h+='<div class="nd st-'+(promo?'warn':st(c.rU))+'"><b>Replica '+(i+1)+'</b><div class="meter"><i style="width:'+Math.round(H.clamp(c.rU,0,1)*100)+'%"></i></div><span class="sub">'+(promo?(S.fo==='auto'?'being promoted':'waiting for a human'):H.pct(c.rU)+' busy · lag '+H.fmtMs(c.lag))+'</span></div>';
+    }
+    q('#rep6').innerHTML=h||'<p class="small">No replicas. The primary does everything.</p>';
+    var g='';
+    g+=H.gauge('Primary load',H.fmtN(c.writes+(c.use?0:c.reads))+' of '+H.fmtN(NODE)+' queries/s',Math.min(1,c.pU),st(c.pU),st(c.pU)==='ok'?'':c.use?'Writes alone are too much for one machine. Replicas cannot help with that.':'The primary is also answering all reads. Send reads to replicas.');
+    g+=H.gauge('Replica load',r===0?'no replicas':H.fmtN(c.use?c.reads/r+c.writes*0.5:c.writes*0.5)+' of '+H.fmtN(NODE)+' queries/s each',r===0?null:Math.min(1,c.rU),r===0?'info':st(c.rU),r===0?'':'Each replica applies every write too, so adding replicas has diminishing returns.');
+    var stSt=c.stale>0.5?'bad':c.stale>0.15?'warn':'ok';
+    g+=H.gauge('Replication lag',r===0?'n/a':S.sync==='sync'?'none (waits for a replica)':H.fmtMs(c.lag),null,r===0?'info':stSt,
+      c.stale>0?'A user who writes and reads straight back has about a '+H.pct(c.stale)+' chance of reading old data from a replica.':'');
+    g+=H.gauge('Write latency',H.fmtMs(c.wMs),Math.min(1,c.wMs/50),c.wMs<20?'ok':c.wMs<80?'warn':'bad',S.sync==='sync'&&r>0?'Each write waits for a replica to confirm, which adds time.':'');
+    var fst=r===0?'bad':S.fo==='manual'?'bad':c.lostAck>=1?'warn':'ok';
+    var ftxt=r===0?'With no replica the app is down about '+H.fmtDur(c.restore)+' while a backup restores (if you have one).'
+      :'Writes fail for about '+H.fmtDur(c.downtime)+' ('+H.fmtN(c.failedW)+' attempts).'+(S.sync==='async'?' Roughly '+H.fmtN(c.lostAck)+' acknowledged writes may be lost.':' No acknowledged writes are lost.')+(c.use?' Reads keep working.':' Reads stop too, because they all used the primary.');
+    g+=H.gauge('If the primary dies',r===0?'long outage':H.fmtDur(c.downtime)+' without writes',null,fst,ftxt);
+    q('#g6').innerHTML=g;
+    var v;
+    if(S.down)v=ftxt;
+    else if(st(c.pU)==='bad')v='The primary is overloaded by writes. This is the limit of replication.';
+    else if(c.use===false&&r>0)v='You have replicas but reads still go to the primary. Switch reads to replicas.';
+    else if(r===0)v='Single database. One failure is a long outage.';
+    else v='Reads are spread over '+r+' replicas. Writes still go to one primary.';
+    H.setText(root,'v6',v);
+    var kb=q('#kp6');kb.setAttribute('aria-pressed',String(S.down));kb.textContent=S.down?'Bring the primary back':'Kill the primary';
+    SL.setMode(S.down?'primary down':(r+1)+' database nodes');
+  }
+  function apply(o){
+    if(o.users!==undefined)S.users=Math.max(1,Math.round(Number(o.users)));
+    if(o.r!==undefined)S.r=H.clamp(Number(o.r),0,5);
+    if(o.read!==undefined)S.read=Number(o.read);
+    if(o.use!==undefined)S.use=!!o.use;
+    if(o.sync)S.sync=o.sync;if(o.fo)S.fo=o.fo;if(o.down!==undefined)S.down=!!o.down;
+  }
+  function act(k,v){
+    if(k==='use')S.use=v==='replicas';else if(k==='sync')S.sync=v;else if(k==='fo')S.fo=v;else if(k==='kill')S.down=!S.down;
+  }
+  function initState(){S.users=1000000;S.r=2;S.read=90;S.use=true;S.sync='async';S.fo='auto';S.down=false;}
+
+  SL.add({id:6,short:'Replication',title:'Replication',
+    tag:'Copy the database to more machines. See what it fixes, what it cannot fix, and what happens when the primary dies.',
+    sim:{html:HTML,init:function(el){initState();init(el);},update:update,apply:apply,act:act},
+    steps:[
+      {t:'Most apps mostly read',dyn:true,
+       b:function(){var c=calc();
+         return '<p>Look at a typical product: people browse far more than they post. A 90 to 99% read share is common.</p><p>At '+H.fmtC(S.users)+' users the database sees '+H.fmtN(c.reads)+' reads and '+H.fmtN(c.writes)+' writes per second. Reads can be answered by any copy of the data. Writes cannot, because only one machine is allowed to decide the order.</p><p>That split is the idea behind a primary with read replicas.</p>';},
+       tries:[{l:'90% reads',read:90},{l:'99% reads',read:99},{l:'50% reads',read:50}]},
+      {t:'Replicas scale reads, not writes',dyn:true,
+       b:function(){var c=calc();
+         return '<p>Try 0 replicas, then 3. Read load moves off the primary. Now drop reads to 50% with 3 replicas: the primary is busy with writes and every replica also replays them.</p><p>Primary at '+H.pct(c.pU)+', replicas at '+H.pct(c.rU)+'. When writes dominate, the next tool is sharding, two levels from now.</p>';},
+       tries:[{l:'No replicas',r:0,read:90,use:true},{l:'3 replicas',r:3,read:90},{l:'50% reads, 3 replicas',r:3,read:50}]},
+      {t:'Lag and read-your-writes',dyn:true,
+       b:function(){var c=calc();
+         return '<p>Asynchronous replicas copy changes a little later. During that lag, a replica returns old data. The painful case is a user who posts a comment, the page reloads from a replica, and the comment is missing.</p><p>Current lag: '+H.fmtMs(c.lag)+'. Replicas under heavy load fall further behind.</p><p>Common fixes: read your own recent writes from the primary, or pin a user to the primary for a few seconds after they write.</p>';},
+       tries:[{l:'Light load',users:300000,r:2},{l:'Heavy load',users:3000000,r:2}]},
+      {t:'Synchronous or asynchronous',dyn:true,
+       b:function(){var c=calc();
+         return '<p>With synchronous replication the primary waits for a replica to confirm each write before answering. Nothing acknowledged is lost, and each write takes longer ('+H.fmtMs(c.wMs)+' now). If the replica is slow or down, writes stall.</p><p>With asynchronous replication the primary answers at once and ships changes later. Writes are fast. If the primary dies, the last moments of acknowledged writes can be lost.</p>';},
+       tries:[{l:'Asynchronous',sync:'async'},{l:'Synchronous',sync:'sync'}]},
+      {t:'Failover',dyn:true,
+       b:function(){var c=calc();
+         return '<p>When the primary dies, promote a replica. Automatic failover needs a monitor that notices the failure, picks the most up-to-date replica, and redirects writes. Typical downtime is tens of seconds. By hand it can take many minutes.</p><p>The monitor must be careful: if two nodes both think they are the primary, they accept different writes. That is split brain, and it is why failover uses a majority vote.</p><p>Right now: '+(S.r===0?'no replica, '+H.fmtDur(c.restore)+' to restore.':H.fmtDur(c.downtime)+' without writes.')+'</p>';},
+       tries:[{l:'Kill primary, automatic',down:true,fo:'auto',r:2},{l:'Same, manual',fo:'manual'},{l:'No replicas',r:0,down:true},{l:'Reset',down:false,r:2,fo:'auto'}]},
+      {t:'What you can take away',
+       b:function(){return '<ul><li>Replicas scale reads and add a standby. They do not scale writes.</li><li>Lag means reads can be stale. Design for read-your-writes.</li><li>Synchronous is safe and slower. Asynchronous is fast and can lose recent writes.</li><li>Automatic failover turns an outage into a blip. Test it.</li></ul><p>Next level: when one primary cannot take the writes or hold the data, split the data itself across machines.</p>';}}
+    ],
+    quiz:[
+      {q:'95% of your database traffic is reads. What helps most?',o:['A faster primary only','Read replicas','More app servers','A bigger network'],a:1,h:'Which kind of work can any copy of the data do?',x:'Reads can be answered by any copy. Replicas share that load and also give you a standby.'},
+      {q:'What do read replicas NOT help with?',o:['Read throughput','High availability','Write throughput','Reporting queries'],a:2,h:'Every replica still has to apply each write.',x:'All writes go through one primary, and each replica replays them too.'},
+      {q:'A user posts a comment, refreshes, and it is gone. A minute later it appears. What happened?',o:['The comment was deleted','Replica lag: the read hit a replica that had not caught up','A cache bug only','The primary failed'],a:1,h:'Where did the refresh read from?',x:'This is the read-your-writes problem. Read recent writes from the primary or pin the user briefly.'},
+      {q:'With asynchronous replication, the primary crashes. What is the risk?',o:['Reads become slow','Recently acknowledged writes may not have reached any replica and are lost','Nothing, replicas always match','The replicas delete data'],a:1,h:'The primary answers before replicas confirm.',x:'Async trades durability of the last moments for speed. Synchronous replication avoids the loss.'}
+    ]});
+})();
+/* ===== Level 7: sharding ===== */
+(function(){
+  var H=SL.H,NK=100000,K=6000,SHARD_Q=8000,SHARD_TB=4,VN=50;
+  var S={n:6,strat:'hash',skew:1,hot:0,qv:430,dv:130,fan:0,moved:null};
+  var root=null,ringCache={},loadCache={};
+  function q(s){return root.querySelector(s);}
+  function qps(){return Math.pow(10,S.qv/100);}
+  function tb(){return Math.max(1,Math.round(Math.pow(10,S.dv/100)));}
+
+  function ring(n){
+    if(ringCache[n])return ringCache[n];
+    var pts=[],s,v;
+    for(s=0;s<n;s++)for(v=0;v<VN;v++)pts.push({h:H.hash(s*1000+v+12345),s:s});
+    pts.sort(function(a,b){return a.h-b.h;});
+    return ringCache[n]=pts;
+  }
+  function assign(key,n,strat){
+    if(strat==='range')return Math.min(n-1,Math.floor(key/(NK/n)));
+    if(strat==='hash')return H.hash(key)%n;
+    var rg=ring(n),h=H.hash(key*7+1),lo=0,hi=rg.length;
+    while(lo<hi){var mid=(lo+hi)>>1;if(rg[mid].h<h)lo=mid+1;else hi=mid;}
+    return rg[lo===rg.length?0:lo].s;
+  }
+  function loads(n,strat,p,hot){
+    var ck=[n,strat,p,hot].join('|');if(loadCache[ck])return loadCache[ck];
+    var r=H.prng(5),c=[],i;for(i=0;i<n;i++)c.push(0);
+    for(i=0;i<K;i++){var key=r()<hot/100?777:Math.floor(NK*Math.pow(r(),p));c[assign(key,n,strat)]++;}
+    return loadCache[ck]=c.map(function(x){return x/K;});
+  }
+  function movedFrac(n,strat){
+    var moved=0,N=3000,i;
+    for(i=0;i<N;i++){var key=Math.floor(i*(NK/N));if(assign(key,n,strat)!==assign(key,n+1,strat))moved++;}
+    return moved/N;
+  }
+  function calc(){
+    var Q=qps(),D=tb(),n=S.n,sh=loads(n,S.strat,S.skew,S.hot),fan=S.fan/100,routed=Q*(1-fan),fanned=Q*fan;
+    var util=sh.map(function(s){return (routed*s+fanned)/SHARD_Q;});
+    var hottest=Math.max.apply(null,util),avg=(routed+fanned*n)/(n*SHARD_Q);
+    var slowP=1-Math.pow(0.99,n),slowAll=fan*slowP+(1-fan)*0.01;
+    return {Q:Q,D:D,n:n,sh:sh,util:util,hottest:hottest,avg:avg,needS:Math.ceil(D/SHARD_TB),needT:Math.ceil(Q/(SHARD_Q*0.6)),perTB:D/n,slowP:slowP,slowAll:slowAll,imb:Math.max.apply(null,sh)*n};
+  }
+  var HTML=
+    '<div class="nodes" id="nd7"></div>'+
+    '<div class="readouts"><div><div class="k">Queries/s</div><div class="v" id="q7v">0</div></div><div><div class="k">Data</div><div class="v" id="d7v">0</div></div><div><div class="k">Shards</div><div class="v" id="n7v">0</div></div></div>'+
+    H.slider('n7','Shards',1,64,6)+
+    H.seg('strat','How keys pick a shard',[{v:'range',l:'Range of IDs'},{v:'hash',l:'Hash mod N'},{v:'ring',l:'Consistent hash'}],'hash')+
+    H.slider('sk7','Popularity skew (higher: low IDs are hotter)',1,6,1,0.5)+
+    H.slider('hot7','One celebrity key (% of traffic)',0,40,0)+
+    H.slider('q7','Peak queries per second',300,600,500)+
+    H.slider('d7','Total data',0,200,130)+
+    H.slider('f7','Queries that need every shard (%)',0,100,0)+
+    '<div class="row"><button class="btn primary" data-act="lvl" data-k="add">Add a shard</button></div><p class="small" id="mv7"></p>'+
+    '<ul class="gauges" id="g7"></ul><p class="verdict" id="v7" aria-live="polite"></p>';
+
+  function init(el){
+    root=el;
+    H.bind(el,{n7:function(v){S.n=Number(v);S.moved=null;SL.refresh();},sk7:function(v){S.skew=Number(v);SL.refresh();},hot7:function(v){S.hot=Number(v);SL.refresh();},
+      q7:function(v){S.qv=Number(v);SL.refresh();},d7:function(v){S.dv=Number(v);SL.refresh();},f7:function(v){S.fan=Number(v);SL.refresh();}});
+  }
+  function st(u){return u<0.7?'ok':u<1?'warn':'bad';}
+  function update(){
+    var c=calc();
+    q('#n7').value=S.n;H.setText(root,'n7V',String(S.n));H.syncSeg(root,'strat',S.strat);
+    q('#sk7').value=S.skew;H.setText(root,'sk7V',S.skew===1?'uniform':S.skew+'×');
+    q('#hot7').value=S.hot;H.setText(root,'hot7V',S.hot+'%');
+    q('#q7').value=S.qv;H.setText(root,'q7V',H.fmtC(c.Q));
+    q('#d7').value=S.dv;H.setText(root,'d7V',c.D+' TB');
+    q('#f7').value=S.fan;H.setText(root,'f7V',S.fan+'%');
+    H.setText(root,'q7v',H.fmtC(c.Q));H.setText(root,'d7v',c.D+' TB');H.setText(root,'n7v',String(S.n));
+    q('#nd7').innerHTML=c.util.map(function(u,i){
+      return '<div class="nd st-'+st(u)+'"><b>Shard '+(i+1)+'</b><div class="meter"><i style="width:'+Math.round(H.clamp(u,0,1)*100)+'%"></i></div><span class="sub">'+H.pct(u)+' busy</span><span class="sub">'+H.pct(c.sh[i])+' of keys hit</span></div>';
+    }).join('');
+    var g='';
+    var ds=c.perTB/SHARD_TB;
+    g+=H.gauge('Data per shard',c.perTB.toFixed(1)+' TB of '+SHARD_TB+' TB',Math.min(1,ds),ds<0.75?'ok':ds<1?'warn':'bad',ds<1?'':'Each shard holds more than one machine can store. Add shards.');
+    g+=H.gauge('Hottest shard',H.pct(c.hottest)+' busy (average '+H.pct(c.avg)+')',Math.min(1,c.hottest),st(c.hottest),c.hottest>1?'This shard is overloaded while others are idle. Adding shards does not fix an uneven key spread.':'');
+    g+=H.gauge('Evenness of load',c.imb.toFixed(1)+'× the fair share on the busiest shard',Math.min(1,(c.imb-1)/2),c.imb<1.3?'ok':c.imb<2?'warn':'bad',
+      c.imb>=1.3?(S.hot>0?'One celebrity key sends '+S.hot+'% of traffic to a single shard, whatever the strategy.':S.strat==='range'?'With range sharding, popular IDs sit together on one shard.':'The key spread is uneven.'):'');
+    var need=Math.max(c.needS,c.needT);
+    g+=H.gauge('Shards needed',S.n+' now, '+need+' needed ('+c.needS+' for storage, '+c.needT+' for traffic)',Math.min(1,S.n/need),S.n>=need?'ok':'bad',S.n>=need?'':'Too few shards for this data size and traffic.');
+    var mv=S.moved===null?movedFrac(S.n,S.strat):S.moved;
+    g+=H.gauge('Keys that move if you add a shard',H.pct(mv),mv,mv<0.2?'ok':mv<0.5?'warn':'bad',mv>=0.5?'Most data would be copied between machines while the system serves traffic.':'');
+    g+=H.gauge('Slow queries',H.pct(c.slowAll)+' of all queries',Math.min(1,c.slowAll*5),c.slowAll<0.02?'ok':c.slowAll<0.1?'warn':'bad',S.fan>0?'A query that needs all '+S.n+' shards is as slow as the slowest one. If each shard is slow 1% of the time, '+H.pct(c.slowP)+' of those queries are slow.':'');
+    q('#g7').innerHTML=g;
+    H.setText(root,'mv7',S.moved!==null?'Last change: adding a shard moved '+H.pct(S.moved)+' of keys.':'');
+    var v=c.hottest>1?'Shard '+(c.util.indexOf(c.hottest)+1)+' is the bottleneck at '+H.pct(c.hottest)+'.':S.n<need?'Not enough shards for the data or traffic.':'The load is spread and every shard has headroom.';
+    H.setText(root,'v7',v);
+    SL.setMode(S.n+' shards');
+  }
+  function apply(o){
+    if(o.n!==undefined)S.n=H.clamp(Number(o.n),1,64);
+    if(o.strat)S.strat=o.strat;
+    if(o.skew!==undefined)S.skew=Number(o.skew);
+    if(o.hot!==undefined)S.hot=Number(o.hot);
+    if(o.qps!==undefined)S.qv=H.clamp(Math.round(Math.log10(Number(o.qps))*100),300,600);
+    if(o.tb!==undefined)S.dv=H.clamp(Math.round(Math.log10(Number(o.tb))*100),0,200);
+    if(o.fan!==undefined)S.fan=Number(o.fan);
+    S.moved=null;
+    if(o.add)act('add');
+  }
+  function act(k,v){
+    if(k==='strat'){S.strat=v;S.moved=null;}
+    else if(k==='add'&&S.n<64){S.moved=movedFrac(S.n,S.strat);S.n++;}
+  }
+  function initState(){S.n=6;S.strat='hash';S.skew=1;S.hot=0;S.qv=430;S.dv=130;S.fan=0;S.moved=null;}
+
+  SL.add({id:7,short:'Sharding',title:'Sharding',
+    tag:'When one primary cannot hold the data or take the writes, split the data across machines. The hard part is choosing how.',
+    sim:{html:HTML,init:function(el){initState();init(el);},update:update,apply:apply,act:act},
+    steps:[
+      {t:'Shard last',dyn:true,
+       b:function(){var c=calc();
+         return '<p>Sharding splits one big dataset into pieces, each on its own database. It is the most powerful scaling tool and the most expensive in complexity. You lose easy joins, cross-piece transactions and simple queries.</p><p>Use it only when caches, replicas and a bigger machine are not enough. Two numbers tell you: data size and write traffic.</p><div class="calc"><span>'+c.D+' TB ÷ '+SHARD_TB+' TB per machine</span><span>'+c.needS+' shards</span><span>'+H.fmtC(c.Q)+' queries/s ÷ '+H.fmtN(SHARD_Q*0.6)+' (60% of one shard)</span><span>'+c.needT+' shards</span></div>';},
+       tries:[{l:'Small: 20k/s, 8 TB, 4 shards',qps:20000,tb:8,n:4},{l:'Big: 200k/s, 40 TB, 64 shards',qps:200000,tb:40,n:64}]},
+      {t:'Choosing the shard key',dyn:true,
+       b:function(){var c=calc();
+         return '<p>A shard key decides which shard owns a row, for example the user id. Two common ways to use it:</p><ul><li><b>Range.</b> IDs 1 to 25k on shard 1, 25k to 50k on shard 2. Good for range scans. Risky when popularity follows the ID, because popular rows cluster.</li><li><b>Hash.</b> Hash the key and take it modulo the shard count. Spreads rows evenly and loses range scans.</li></ul><p>Set the skew to 3× and compare the two. Busiest shard now: '+c.imb.toFixed(1)+'× the fair share.</p>';},
+       tries:[{l:'Range, skewed',strat:'range',skew:3,n:8,hot:0,fan:0},{l:'Hash, same traffic',strat:'hash'}]},
+      {t:'Resharding is the painful part',dyn:true,
+       b:function(){
+         var rows=['hash','ring','range'].map(function(s){return {num:[1],c:[{hash:'Hash mod N',ring:'Consistent hash',range:'Range of IDs'}[s],H.pct(movedFrac(S.n,s))]};});
+         return '<p>Data grows, so you will add shards. With hash mod N, changing N changes almost every key\'s home. Nearly all the data has to move.</p><p>Consistent hashing places shards on a ring and gives each key to the next shard clockwise. A new shard only takes keys from its neighbours, about 1 in N+1.</p>'+
+         H.table(['Strategy','Keys moved by adding 1 shard (now '+S.n+' to '+(S.n+1)+')'],rows)+'<p>Press Add a shard under each strategy to see the same number in the simulator.</p>';},
+       tries:[{l:'Hash, 8 shards, add one',strat:'hash',n:8,add:true,skew:1,hot:0,fan:0},{l:'Consistent hash, 8 shards, add one',strat:'ring',n:8,add:true}]},
+      {t:'Hot keys',dyn:true,
+       b:function(){var c=calc();
+         return '<p>Hashing spreads many keys evenly. It cannot split one key. A celebrity account, a viral post or one big customer sends traffic to a single row, and so to a single shard.</p><p>Fixes: cache the hot item, split the key (store several copies, such as <i>post:7#1</i> to <i>post:7#8</i>, and read a random one), or give the biggest customers their own shard.</p><p>Now the hottest shard is at '+H.pct(c.hottest)+'.</p>';},
+       tries:[{l:'25% of traffic on one key',hot:25,strat:'hash',n:16,skew:1,fan:0,qps:60000},{l:'No hot key',hot:0,qps:20000}]},
+      {t:'Queries across shards',dyn:true,
+       b:function(){var c=calc();
+         return '<p>If a query includes the shard key, one shard answers. If it does not, for example "find users by email" when you shard by user id, the query goes to every shard and waits for the slowest. Each shard also has to do the work.</p><p>With '+S.n+' shards and 1% slow answers per shard, '+H.pct(c.slowP)+' of such queries are slow. More shards make that worse.</p><p>Fixes: keep a secondary index (lookup table) that maps email to user id, and design so the common queries carry the shard key.</p>';},
+       tries:[{l:'20% need all shards, 16 shards',fan:20,n:16,hot:0,strat:'hash',qps:20000},{l:'Index it away',fan:0}]},
+      {t:'What you can take away',
+       b:function(){return '<ul><li>Shard when data or writes outgrow one machine, and not before.</li><li>The shard key is the most important decision. Choose one that every common query carries.</li><li>Hash for even spread, range for scans, consistent hashing for painless growth.</li><li>No scheme fixes a single hot key. Cache or split it.</li><li>Queries without the key hit every shard and get slower as you grow.</li></ul><p>Next level: not all work has to happen while the user waits. Queues move slow tasks out of the request path.</p>';}}
+    ],
+    quiz:[
+      {q:'You use hash(key) mod 8 and add a 9th shard. About how many keys move?',o:['About 1 in 9','About half','About 8 in 9','None'],a:2,h:'Most keys get a new remainder when the divisor changes.',x:'Changing N reshuffles almost everything. Consistent hashing limits the move to roughly 1 in N+1.'},
+      {q:'You shard users by ID range, and the oldest IDs are the most active. What happens?',o:['Load spreads evenly','The first shard becomes a hot spot','Writes become faster','Nothing, ranges balance themselves'],a:1,h:'Where do the busy users live?',x:'When popularity follows the key, range sharding concentrates traffic on a few shards.'},
+      {q:'One celebrity row gets 25% of all traffic. Hashing the key spreads it across shards. True or false?',o:['True, hashing balances any traffic','False, one key always maps to one shard, so cache or split it','True, but only with consistent hashing','False, because hashes collide'],a:1,h:'A hash of the same key is always the same.',x:'Hashing spreads different keys. A single hot key stays on one shard unless you cache or split it.'},
+      {q:'A query that does not include the shard key runs on 16 shards, each slow 1% of the time. About what share of those queries are slow?',o:['1%','About 15%','About 50%','About 99%'],a:1,h:'The query is slow if any shard is slow.',x:'1 - 0.99^16 is about 15%. Scatter-gather queries inherit the worst shard.'}
+    ]});
+})();
+/* ===== Level 8: queues and async work ===== */
+(function(){
+  var H=SL.H,DT=0.2,HIST=300,MAXQ=5000;
+  var S={arr:250,workers:3,per:100,bound:false,crash:0,idem:false};
+  var T={depth:0,done:0,dropped:0,dup:0,supp:0,burst:0,paused:false,hist:[]};
+  var root=null,timer=null;
+  function q(s){return root.querySelector(s);}
+  function cap(){return S.workers*S.per;}
+  function effArr(){return S.arr*(T.burst>0?5:1);}
+
+  function tick(){
+    if(T.paused)return;
+    var a=effArr()*DT,c=cap()*DT;
+    T.depth+=a;
+    var proc=Math.min(T.depth,c);T.depth-=proc;
+    var redo=proc*S.crash/100;
+    if(redo>0){T.depth+=redo;if(S.idem)T.supp+=redo;else T.dup+=redo;}
+    T.done+=proc-redo;
+    if(S.bound&&T.depth>MAXQ){T.dropped+=T.depth-MAXQ;T.depth=MAXQ;}
+    if(T.burst>0)T.burst=Math.max(0,T.burst-DT);
+    T.hist.push(T.depth);if(T.hist.length>HIST)T.hist.shift();
+  }
+  function resetSim(){T.depth=0;T.done=0;T.dropped=0;T.dup=0;T.supp=0;T.burst=0;T.paused=false;T.hist=[];for(var i=0;i<HIST;i++)tick();}
+
+  var HTML=
+    '<div class="readouts"><div><div class="k">Arriving /s</div><div class="v" id="ar8">0</div></div><div><div class="k">Workers can do /s</div><div class="v" id="cp8">0</div></div><div><div class="k">In the queue</div><div class="v" id="qd8">0</div></div></div>'+
+    '<label class="ctl">Queue depth, last 60 seconds</label><div id="ch8"></div>'+
+    H.slider('a8','Jobs arriving per second',10,1500,250,10)+H.slider('w8','Workers',1,20,3)+H.slider('p8','Jobs per worker per second',20,200,100,10)+
+    H.seg('bound','Queue limit',[{v:'off',l:'No limit'},{v:'on',l:'5,000 jobs'}],'off')+
+    H.slider('c8','Workers that crash after finishing (%)',0,30,0)+
+    H.seg('idem','Idempotent jobs',[{v:'off',l:'Off'},{v:'on',l:'On'}],'off')+
+    '<div class="row"><button class="btn primary" data-act="lvl" data-k="burst">Burst: 5× for 10 s</button><button class="btn" id="pz8" data-act="lvl" data-k="pause">Pause</button><button class="btn" data-act="lvl" data-k="reset">Reset</button></div>'+
+    '<ul class="gauges" id="g8"></ul><p class="verdict" id="v8" aria-live="polite"></p>';
+
+  function init(el){
+    root=el;
+    H.bind(el,{a8:function(v){S.arr=Number(v);SL.refresh();},w8:function(v){S.workers=Number(v);SL.refresh();},p8:function(v){S.per=Number(v);SL.refresh();},c8:function(v){S.crash=Number(v);SL.refresh();}});
+    resetSim();
+    timer=setInterval(function(){tick();update();},200);
+  }
+  function destroy(){if(timer){clearInterval(timer);timer=null;}}
+  function update(){
+    if(!root||!root.isConnected)return;
+    var c=cap(),a=effArr(),util=a/c,wait=T.depth/c;
+    q('#a8').value=S.arr;q('#w8').value=S.workers;q('#p8').value=S.per;q('#c8').value=S.crash;
+    H.setText(root,'a8V',S.arr+'/s');H.setText(root,'w8V',String(S.workers));H.setText(root,'p8V',S.per+'/s');H.setText(root,'c8V',S.crash+'%');
+    H.syncSeg(root,'bound',S.bound?'on':'off');H.syncSeg(root,'idem',S.idem?'on':'off');
+    H.setText(root,'ar8',H.fmtN(a));H.setText(root,'cp8',H.fmtN(c));H.setText(root,'qd8',H.fmtN(T.depth));
+    q('#pz8').textContent=T.paused?'Resume':'Pause';
+    var mx=Math.max(100,Math.max.apply(null,T.hist)*1.1),mag=Math.pow(10,Math.floor(Math.log10(mx))),ymax=Math.ceil(mx/mag)*mag;
+    var pts=T.hist.map(function(d,i){return [i*DT-(T.hist.length-1)*DT,d];});
+    q('#ch8').innerHTML=H.chart({w:320,h:160,xmin:-60,xmax:0,ymax:ymax,series:[{pts:pts}],
+      xticks:[{x:-60,l:'-60 s'},{x:-30,l:'-30 s'},{x:0,l:'now'}],yticks:[{y:0,l:'0'},{y:ymax/2,l:H.fmtC(ymax/2)},{y:ymax,l:H.fmtC(ymax)}],
+      hlines:S.bound?[{y:MAXQ,l:'queue limit'}]:[],aria:'Queue depth over the last 60 seconds'});
+    var g='',uSt=util<0.85?'ok':util<1?'warn':'bad';
+    g+=H.gauge('Arrival vs. capacity',H.pct(util)+' of what workers can do',Math.min(1,util),uSt,uSt==='bad'?'Work arrives faster than workers finish it. The queue keeps growing.':'');
+    var wSt=wait<2?'ok':wait<30?'warn':'bad';
+    g+=H.gauge('Time until a new job starts',H.fmtDur(wait)+' waiting in line',Math.min(1,wait/60),wSt,wSt==='ok'?'':'Jobs wait this long before a worker picks them up.');
+    g+=H.gauge('User waits for the request','sync '+H.fmtMs(Math.min(30000,400/(1-Math.min(util,0.995))))+' · async 20 ms',null,'info','Synchronous: the user waits while the work runs. Asynchronous: the user gets "accepted" at once and the work finishes later.');
+    g+=H.gauge('Jobs dropped',H.fmtN(T.dropped),null,T.dropped>0?'bad':'ok',T.dropped>0?'The queue hit its limit. New jobs are rejected, which is how the system pushes back on callers.':S.bound?'':'Without a limit the queue never drops jobs. It grows until memory runs out.');
+    g+=H.gauge('Duplicate side effects',S.idem?H.fmtN(T.supp)+' duplicates blocked':H.fmtN(T.dup)+' jobs ran twice',null,S.idem?'ok':T.dup>0?'bad':'ok',S.crash>0?(S.idem?'Each job carries a unique id. A second run sees it was done and does nothing.':'A worker that crashes after finishing but before confirming makes the queue redeliver the job. Without idempotency, customers get charged twice.'):'');
+    q('#g8').innerHTML=g;
+    var v=T.paused?'Paused.':uSt==='bad'?'Overloaded: '+H.fmtN(T.depth)+' jobs waiting and rising.':T.burst>0?'Burst in progress. The queue is absorbing it.':T.depth>50?'Draining the backlog.':'Healthy. The queue is nearly empty.';
+    H.setText(root,'v8',v);
+    SL.setMode(H.fmtN(T.depth)+' queued');
+  }
+  function apply(o){
+    if(o.arr!==undefined)S.arr=Number(o.arr);if(o.workers!==undefined)S.workers=Number(o.workers);if(o.per!==undefined)S.per=Number(o.per);
+    if(o.bound!==undefined)S.bound=!!o.bound;if(o.crash!==undefined)S.crash=Number(o.crash);if(o.idem!==undefined)S.idem=!!o.idem;
+    if(o.reset){resetSim();}
+    if(o.burst){T.burst=10;}
+  }
+  function act(k,v){
+    if(k==='bound')S.bound=v==='on';else if(k==='idem')S.idem=v==='on';
+    else if(k==='burst')T.burst=10;else if(k==='pause')T.paused=!T.paused;else if(k==='reset')resetSim();
+  }
+  function initState(){S.arr=250;S.workers=3;S.per=100;S.bound=false;S.crash=0;S.idem=false;}
+
+  SL.add({id:8,short:'Queues and async work',title:'Queues and async work',
+    tag:'Not everything has to finish before the user gets an answer. A queue smooths bursts, but it has its own ways to fail.',
+    sim:{html:HTML,init:function(el){initState();init(el);},update:update,apply:apply,act:act,destroy:destroy},
+    steps:[
+      {t:'Do not make the user wait',
+       b:function(){return '<p>Some work is slow or unreliable: sending an email, resizing a photo, calling a payment provider, building a report. If the request waits for it, the user waits too, and a slow dependency makes your whole site slow.</p><p>The pattern: accept the request, put a job on a queue, reply "accepted" in milliseconds, and let workers do the job in the background. Look at the gauge "User waits for the request".</p><p>Good candidates: anything the user does not need the result of right now. Bad candidates: checking a password, reading a profile.</p>';},
+       tries:[{l:'Reset',reset:true,arr:250,workers:3,per:100,bound:false,crash:0,idem:false}]},
+      {t:'A queue absorbs bursts',
+       b:function(){return '<p>Traffic comes in waves. Without a queue you must size workers for the peak. With a queue you size them for the average and let the queue hold the spike.</p><p>Press the burst button. For 10 seconds jobs arrive at five times the normal rate (1,250/s against 300/s of capacity). The queue fills, then drains once the burst ends. The drain time is backlog ÷ (capacity - arrival rate).</p>';},
+       tries:[{l:'Burst now',burst:true},{l:'Add 2 workers',workers:5},{l:'Reset',reset:true,workers:3}]},
+      {t:'When work arrives faster than it leaves',
+       b:function(){return '<p>A queue helps with bursts. It cannot help if the average arrival rate is above capacity. Set arrivals to 400/s with workers that do 300/s. The queue grows without limit, wait times grow with it, and eventually memory runs out.</p><p>Three honest options: add workers, make jobs cheaper, or refuse some work. Setting a queue limit does the third. New jobs are rejected, and callers see an error or slow down. That is backpressure.</p>';},
+       tries:[{l:'Overload: 400/s vs 300/s',reset:true,arr:400,workers:3,per:100,bound:false},{l:'Add a queue limit',bound:true},{l:'Add 2 workers',workers:5,bound:false}]},
+      {t:'At-least-once delivery',
+       b:function(){return '<p>Queues usually promise at-least-once delivery. A worker takes a job, does the work, and confirms. If it crashes before confirming, the queue gives the job to another worker. The work may have already happened.</p><p>So every job must be safe to run twice. That property is idempotency. Attach a unique id to each job, record the ids you have handled, and skip repeats. Set 20% crashes with idempotency off, then on.</p>';},
+       tries:[{l:'20% crash, not idempotent',reset:true,arr:250,workers:3,crash:20,idem:false,bound:false},{l:'Turn idempotency on',idem:true}]},
+      {t:'What you can take away',
+       b:function(){return '<ul><li>Move slow, unreliable or non-urgent work behind a queue and answer fast.</li><li>A queue handles bursts. It does not fix sustained overload.</li><li>Bound your queues so they push back instead of eating all memory.</li><li>Delivery is at least once, so make jobs idempotent.</li><li>Watch queue depth and age. They are the early warning for everything downstream.</li></ul><p>Next level: with many machines, copies of data can disagree. Learn what consistency costs and why partitions force a choice.</p>';}}
+    ],
+    quiz:[
+      {q:'Which task is best moved onto a queue?',o:['Checking a password at login','Resizing an uploaded photo','Reading a user\'s profile for the page','Verifying a session token'],a:1,h:'Which one can finish after the user has their answer?',x:'Photo processing can happen in the background. Login and profile reads must finish before the page can respond.'},
+      {q:'Jobs arrive at 400/s, workers finish 300/s, and the queue has no limit. What happens over time?',o:['The queue settles at a stable size','The queue grows without bound and waits keep getting longer','Jobs are processed twice as fast','Nothing, queues absorb any load'],a:1,h:'Compare the two rates over a long time.',x:'A queue only absorbs bursts. If average arrivals exceed capacity, the backlog grows forever.'},
+      {q:'A worker finishes a payment, then crashes before confirming. The queue redelivers the job. What protects the customer?',o:['A bigger queue','Idempotency: a unique job id that makes the second run a no-op','More workers','Faster disks'],a:1,h:'The job will be delivered again.',x:'At-least-once delivery means duplicates happen. Idempotent jobs make them harmless.'},
+      {q:'Why give a queue a size limit?',o:['It makes workers faster','It pushes back on callers instead of using all memory','It removes duplicates','It is required by the cloud'],a:1,h:'What if jobs keep arriving and nothing stops them?',x:'A limit turns unbounded growth into a clear signal. Callers can slow down or fail fast.'}
+    ]});
+})();
+/* ===== Level 9: consistency and CAP ===== */
+(function(){
+  var H=SL.H,IDS=['A','B','C'],LAT={A:2,B:8,C:80},WHO={A:'Alice',B:'Bea',C:'Carlos'};
+  var S={W:1,R:1,part:false};
+  var N={},log=[],clock=0,accepted=[];
+  var root=null;
+  function q(s){return root.querySelector(s);}
+
+  function reset(){IDS.forEach(function(i){N[i]={v:'free',ver:0};});log=[];clock=0;accepted=[];S.part=false;}
+  function reach(x){return S.part?(x==='C'?['C']:['A','B']):IDS.slice();}
+  function pick(x,r,k){var rest=r.filter(function(i){return i!==x;});return [x].concat(rest).slice(0,k);}
+  function say(t){log.unshift(t);if(log.length>7)log.pop();}
+  function best(ids){var m=ids[0];ids.forEach(function(i){if(N[i].ver>N[m].ver)m=i;});return N[m];}
+  function sync(){
+    var sides=S.part?[['A','B'],['C']]:[IDS];
+    sides.forEach(function(side){var b=best(side),v=b.v,ver=b.ver;side.forEach(function(i){N[i]={v:v,ver:ver};});});
+    var same=IDS.every(function(i){return N[i].ver===N.A.ver;});
+    if(same){
+      accepted.forEach(function(a){
+        if(a.ts!==N.A.ver&&!a.lost){a.lost=true;say('Conflict: '+a.name+'\'s booking was accepted, then silently discarded. The latest write won ('+N.A.v+').');}
+      });
+    }
+  }
+  function book(x,name){
+    var r=reach(x);
+    if(r.length<S.R){say(name+' via '+x+': cannot check the seat. Only '+r.length+' of the '+S.R+' nodes needed for a read are reachable. Booking refused.');return;}
+    var seen=best(pick(x,r,S.R));
+    if(seen.v!=='free'){say(name+' via '+x+': seat already taken by '+seen.v+'. No write.');return;}
+    if(r.length<S.W){say(name+' via '+x+': seat looks free, but only '+r.length+' of the '+S.W+' nodes needed for a write are reachable. Booking refused.');return;}
+    var ts=++clock,ws=pick(x,r,S.W);
+    ws.forEach(function(i){N[i]={v:name,ver:ts};});
+    accepted.push({name:name,ts:ts,node:x});
+    say(name+' via '+x+': booked. Written to '+ws.join(', ')+'.');
+  }
+  function check(x){
+    var r=reach(x);
+    if(r.length<S.R){say('Check via '+x+': unavailable. Only '+r.length+' of the '+S.R+' nodes needed for a read are reachable.');return;}
+    var seen=best(pick(x,r,S.R)),newest=Math.max(N.A.ver,N.B.ver,N.C.ver);
+    say('Check via '+x+': seat is '+seen.v+' (version '+seen.ver+').'+(seen.ver<newest?' STALE: a newer write exists on another node.':''));
+  }
+  function lat(k){var a=IDS.map(function(i){return LAT[i];}).sort(function(x,y){return x-y;});return a[k-1];}
+
+  var HTML=
+    '<div class="nodes" id="nd9"></div><p class="small" id="cut9"></p>'+
+    '<label class="ctl">The last seat on a flight</label>'+
+    '<div class="row"><button class="btn" data-act="lvl" data-k="book" data-v="A">Alice books via A</button><button class="btn" data-act="lvl" data-k="book" data-v="B">Bea books via B</button><button class="btn" data-act="lvl" data-k="book" data-v="C">Carlos books via C</button></div>'+
+    '<div class="row"><button class="btn" data-act="lvl" data-k="check" data-v="A">Check via A</button><button class="btn" data-act="lvl" data-k="check" data-v="B">Check via B</button><button class="btn" data-act="lvl" data-k="check" data-v="C">Check via C</button></div>'+
+    '<div class="row"><button class="btn" data-act="lvl" data-k="catchup">Let replication catch up</button><button class="btn danger" id="pt9" data-act="lvl" data-k="part" aria-pressed="false">Cut the network to C</button><button class="btn" data-act="lvl" data-k="reset">Reset</button></div>'+
+    H.slider('w9','Nodes that must confirm a write (W)',1,3,1)+H.slider('r9','Nodes that must answer a read (R)',1,3,1)+
+    H.seg('pre','Presets',[{v:'ev',l:'Fast, loose (1, 1)'},{v:'maj',l:'Majority (2, 2)'},{v:'all',l:'Write all (3, 1)'}],'ev')+
+    '<ul class="log" id="lg9" aria-live="polite"></ul>'+
+    '<ul class="gauges" id="g9"></ul><p class="verdict" id="v9"></p>';
+
+  function init(el){
+    root=el;
+    H.bind(el,{w9:function(v){S.W=Number(v);SL.refresh();},r9:function(v){S.R=Number(v);SL.refresh();}});
+  }
+  function update(){
+    q('#w9').value=S.W;q('#r9').value=S.R;H.setText(root,'w9V',String(S.W));H.setText(root,'r9V',String(S.R));
+    var pre=S.W===1&&S.R===1?'ev':S.W===2&&S.R===2?'maj':S.W===3&&S.R===1?'all':'';H.syncSeg(root,'pre',pre);
+    var newest=Math.max(N.A.ver,N.B.ver,N.C.ver);
+    q('#nd9').innerHTML=IDS.map(function(i){
+      var stale=N[i].ver<newest;
+      return '<div class="nd st-'+(stale?'warn':'ok')+'"><b>Node '+i+'</b><span class="sub">'+LAT[i]+' ms away'+(i==='C'?' (other region)':'')+'</span><span class="sub">seat: <b style="display:inline">'+H.esc(N[i].v)+'</b></span><span class="sub">version '+N[i].ver+(stale?' · stale':'')+'</span></div>';
+    }).join('');
+    H.setText(root,'cut9',S.part?'The network between C and the other two nodes is cut. A and B can talk. C is alone.':'');
+    var pb=q('#pt9');pb.setAttribute('aria-pressed',String(S.part));pb.textContent=S.part?'Heal the network':'Cut the network to C';
+    q('#lg9').innerHTML=log.length?log.map(function(l){return '<li>'+H.esc(l)+'</li>';}).join(''):'<li>Press a booking button to begin.</li>';
+    var g='',ov=S.R+S.W>3;
+    g+=H.gauge('Reads see the latest write',ov?'guaranteed (R + W = '+(S.R+S.W)+' > 3)':'not guaranteed (R + W = '+(S.R+S.W)+')',null,ov?'ok':'warn',ov?'Every read set overlaps every write set, so at least one node in a read has the newest value.':'A read can hit only nodes that missed the latest write.');
+    g+=H.gauge('Write latency',lat(S.W)+' ms',Math.min(1,lat(S.W)/80),lat(S.W)<20?'ok':'warn','A write waits for the '+S.W+(S.W===1?'st':S.W===2?'nd':'rd')+' fastest confirmation.');
+    g+=H.gauge('Read latency',lat(S.R)+' ms',Math.min(1,lat(S.R)/80),lat(S.R)<20?'ok':'warn','');
+    var side=function(n){return (n>=S.W?'writes ok':'writes refused')+', '+(n>=S.R?'reads ok':'reads refused');};
+    g+=H.gauge('If the network splits (A, B | C)','A and B: '+side(2)+' · C: '+side(1),null,(2>=S.W&&2>=S.R&&1>=S.W&&1>=S.R)?'warn':(2>=S.W&&2>=S.R)?'ok':'bad',
+      (1>=S.W&&1>=S.R)?'Both sides keep serving, so they can accept conflicting bookings. Available, but not consistent.':(2>=S.W&&2>=S.R)?'Only the majority side serves. The lonely node refuses instead of guessing. Consistent, but partly unavailable.':'Neither side can serve everything.');
+    var agree=N.A.ver===N.B.ver&&N.B.ver===N.C.ver;
+    g+=H.gauge('Copies agree',agree?'yes':'no',null,agree?'ok':'warn',agree?'':'Replication has not caught up yet.');
+    var lost=accepted.filter(function(a){return a.lost;}).length;
+    g+=H.gauge('Bookings lost to conflicts',String(lost),null,lost?'bad':'ok',lost?'Two customers were told they had the seat. This is why last-write-wins is dangerous for money and inventory.':'');
+    q('#g9').innerHTML=g;
+    H.setText(root,'v9',lost?'Double booking happened. Reset and try the majority preset.':S.part?'The network is split. See which side can still serve.':'Try booking the seat from two different nodes.');
+    SL.setMode(S.part?'partitioned':'connected');
+  }
+  function runOp(op){
+    if(op[0]==='book')book(op[1],WHO[op[1]]);
+    else if(op[0]==='check')check(op[1]);
+    else if(op[0]==='catchup'){sync();say('Replication caught up'+(S.part?' within each side of the split.':'.'));}
+    else if(op[0]==='heal'){S.part=false;sync();say('Network healed. Nodes reconciled.');}
+    else if(op[0]==='cut'){S.part=true;}
+  }
+  function apply(o){
+    if(o.reset)reset();
+    if(o.W!==undefined)S.W=Number(o.W);if(o.R!==undefined)S.R=Number(o.R);
+    if(o.part!==undefined)S.part=!!o.part;
+    (o.ops||[]).forEach(runOp);
+  }
+  function act(k,v){
+    if(k==='book')book(v,WHO[v]);else if(k==='check')check(v);
+    else if(k==='catchup'){sync();say('Replication caught up'+(S.part?' within each side of the split.':'.'));}
+    else if(k==='part'){if(S.part){S.part=false;sync();say('Network healed. Nodes reconciled.');}else{S.part=true;say('Network cut between C and the others.');}}
+    else if(k==='reset'){var w=S.W,r=S.R;reset();S.W=w;S.R=r;}
+    else if(k==='pre'){if(v==='ev'){S.W=1;S.R=1;}else if(v==='maj'){S.W=2;S.R=2;}else{S.W=3;S.R=1;}}
+  }
+
+  SL.add({id:9,short:'Consistency and CAP',title:'Consistency and CAP',
+    tag:'Once data lives on several machines, they can disagree. Learn what each guarantee costs, using the last seat on a flight.',
+    sim:{html:HTML,init:function(el){reset();S.W=1;S.R=1;init(el);},update:update,apply:apply,act:act},
+    steps:[
+      {t:'Copies can disagree',
+       b:function(){return '<p>Level 6 gave you copies of the data. Copies take time to update, so for a moment two nodes can give different answers. That is the difference between strong and eventual consistency.</p><p>Here three nodes each hold the same seat. A is 2 ms away, B is 8 ms, C is in another region at 80 ms. With W=1 a write only waits for the nearest node, then spreads to the rest later.</p><p>Press the first button: Alice books via A, then someone checks via C.</p>';},
+       tries:[{l:'Alice books, check via C',reset:true,W:1,R:1,ops:[['book','A'],['check','C']]}]},
+      {t:'Two people, one seat',
+       b:function(){return '<p>With W=1 and R=1, each node answers from its own copy. Bea checks via B before the news from A arrives, sees a free seat, and books it. Both writes succeed. When replication catches up, one booking silently wins and the other disappears.</p><p>This is a lost update. It happens without any failure at all.</p>';},
+       tries:[{l:'Alice via A, Bea via B, catch up',reset:true,W:1,R:1,ops:[['book','A'],['book','B'],['catchup']]}]},
+      {t:'Quorums fix the overlap',
+       b:function(){return '<p>With N copies, require W nodes to confirm a write and R nodes to answer a read. If R + W is greater than N, every read touches at least one node that saw the latest write. With N=3 that means W=2 and R=2.</p><p>Run the same booking with the majority preset. Bea\'s check reads two nodes, sees Alice\'s booking, and stops.</p>';},
+       tries:[{l:'Majority: Alice then Bea',reset:true,W:2,R:2,ops:[['book','A'],['book','B']]},{l:'Check via C afterwards',ops:[['check','C']]}]},
+      {t:'When the network splits',
+       b:function(){return '<p>A partition means some nodes cannot reach others. It will happen. During one, you must choose.</p><ul><li><b>Stay available.</b> Both sides keep accepting bookings. You get conflicts to clean up afterwards. This is an AP choice.</li><li><b>Stay consistent.</b> Only the side with a majority serves. The other refuses. This is a CP choice.</li></ul><p>Run both. With W=1, R=1 both bookings succeed. With the majority preset Carlos is refused, and nobody is double booked.</p>';},
+       tries:[{l:'Loose: split, both book, heal',reset:true,W:1,R:1,part:true,ops:[['book','A'],['book','C'],['heal']]},{l:'Majority: split, both try',reset:true,W:2,R:2,part:true,ops:[['book','A'],['book','C']]}]},
+      {t:'Latency, even when nothing breaks',
+       b:function(){return '<p>Waiting for more nodes costs time. The write waits for the Wth fastest node, so W=3 means waiting for the far region: 80 ms instead of 2 ms. Strong consistency is slower even on a good day.</p><p>Compare W=1, W=2 and W=3 in the gauges below the buttons.</p>';},
+       tries:[{l:'W=1, R=1',W:1,R:1},{l:'W=2, R=2',W:2,R:2},{l:'W=3, R=1',W:3,R:1}]},
+      {t:'Choose per feature',
+       b:function(){return H.table(['Feature','Needs','Why'],[
+         {c:['Seat booking, payments, inventory','Strong','A lost update is a real-world error']},
+         {c:['Like counts, view counts','Eventual','Off by a few for a second is fine']},
+         {c:['Feeds, search results','Eventual','Fresh within seconds is enough']},
+         {c:['Account balance shown to the owner','Strong or read-your-writes','People notice their own money']}])+'<p>Do not pick one consistency level for the whole system. Pick it per feature, and pay only where it matters.</p><p>Takeaways: copies disagree by default, quorums trade latency for safety, and a partition forces a choice between availability and consistency.</p><p>Next level: failures happen constantly. Learn timeouts, retries, and how retries can make an outage worse.</p>';}}
+    ],
+    quiz:[
+      {q:'With 3 copies, which setting guarantees a read sees the latest write?',o:['W=1, R=1','W=2, R=2','W=1, R=2','Any setting does'],a:1,h:'Check whether R + W is greater than 3.',x:'2 + 2 is greater than 3, so every read overlaps every write. 1 + 1 and 1 + 2 do not.'},
+      {q:'During a network split a system keeps accepting writes on both sides. What did it favour?',o:['Consistency','Availability, at the cost of possible conflicts','Latency only','Durability only'],a:1,h:'Which side was refused service?',x:'Neither side was refused, so it stayed available. Conflicting writes now have to be reconciled.'},
+      {q:'What is the danger of last-write-wins for seat booking?',o:['It is slow','One of two concurrent bookings is silently discarded','It uses more memory','It needs a quorum'],a:1,h:'Two writes, one survivor.',x:'Both customers were told they succeeded, and one is quietly overwritten.'},
+      {q:'Which feature can usually tolerate eventual consistency?',o:['Payment capture','Seat inventory','A video\'s view counter','Bank transfers'],a:2,h:'Which one is harmless if it is slightly behind?',x:'Counters can lag a moment. Money and inventory cannot.'}
+    ]});
+})();
+/* ===== Level 10: reliability under failure ===== */
+(function(){
+  var H=SL.H,CAP=100,SERV=0.1,TICK=0.5,HIST=120;
+  var S={load:60,slow:false,timeout:2,retries:0,backoff:false,breaker:false,limit:false,shed:false};
+  var T={queue:0,ok:0,fail:0,retr:0,hist:[],bst:'closed',bt:0};
+  var root=null,timer=null;
+  function q(s){return root.querySelector(s);}
+  function svc(){return S.slow?SERV*2:SERV;}
+  function resetT(){T.queue=0;T.ok=0;T.fail=0;T.retr=0;T.hist=[];T.bst='closed';T.bt=0;}
+
+  /* fluid model: one dependency finishing CAP calls/s when healthy, half that when slow */
+  var STATE={arr:0,util:0,okRate:0,failRate:0,sent:0,resp:0,rejected:0,breakerOpen:false};
+  function step(){
+    var base=S.load*0.01*CAP*1.0; /* req/s from users: load is % of capacity */
+    var workers=CAP*SERV,cap=workers/svc();           /* calls per second the dependency can finish */
+    var users=base;
+    var retryF=S.retries;
+    var tmo=S.timeout;
+    /* previous failure fraction drives retries */
+    var pf=STATE.failRate>0?STATE.failRate/Math.max(1,STATE.okRate+STATE.failRate):0;
+    var extra=0;
+    if(S.retries>0){var f=pf;extra=users*(f+f*f+f*f*f);if(S.retries<3)extra=users*(S.retries===1?f:f+f*f);if(S.backoff)extra*=0.25;}
+    var shed=0;
+    var send=users+extra;
+    if(S.limit&&send>cap*0.9){shed=send-cap*0.9;send=cap*0.9;}
+    if(S.breaker){
+      if(T.bst==='open'){T.bt-=TICK;send=0;if(T.bt<=0)T.bst='half';}
+      else if(T.bst==='half'){send=Math.min(send,cap*0.05+1);}
+    }
+    var admit=send,rho=admit/cap;
+    var queue=T.queue+(admit-cap)*TICK;queue=H.clamp(queue,0,cap*30);T.queue=queue;
+    var wait=queue/cap+svc(),done=Math.min(admit,cap);
+    var timedOut=wait>tmo;
+    var okShare=timedOut?0:1;
+    if(S.shed&&timedOut){T.queue=Math.max(0,T.queue*0.5);}
+    var ok=done*okShare,fail=(admit-ok)+shed+(S.breaker&&T.bst==='open'?users:0);
+    /* user-facing */
+    var userOk=Math.max(0,Math.min(users,ok*(users/Math.max(users+extra,0.0001))));
+    if(S.breaker&&T.bst==='open'){userOk=S.shed?users*0.3:0;}
+    if(S.breaker){
+      var fr=admit>0?(admit-ok)/admit:0;
+      if(T.bst==='closed'&&fr>0.5&&admit>5){T.bst='open';T.bt=8;}
+      else if(T.bst==='half'){if(fr<0.2)T.bst='closed';else{T.bst='open';T.bt=8;}}
+    }
+    STATE={arr:users,util:rho,okRate:userOk,failRate:Math.max(0,users-userOk),sent:send,resp:wait,rejected:shed,extra:extra,breakerOpen:T.bst==='open',cap:cap};
+    T.hist.push(Math.min(1,userOk/Math.max(users,0.0001)));if(T.hist.length>HIST)T.hist.shift();
+  }
+  function settle(n){for(var i=0;i<n;i++)step();}
+
+  var HTML=
+    '<div class="flow" id="fl10"></div>'+
+    '<div class="readouts"><div><div class="k">Users OK</div><div class="v" id="ok10">0%</div></div><div><div class="k">Load on dependency</div><div class="v" id="ld10">0%</div></div><div><div class="k">Breaker</div><div class="v" id="br10">off</div></div></div>'+
+    '<label class="ctl">Share of user requests that succeed, last 60 seconds</label><div id="ch10"></div>'+
+    H.slider('l10','Traffic (% of dependency capacity)',10,120,60,5)+
+    H.seg('slow','Dependency health',[{v:'ok',l:'Healthy'},{v:'slow',l:'Slow: half speed'}],'ok')+
+    H.slider('t10','Timeout (seconds)',1,10,2)+
+    H.seg('retries','Retries',[{v:'0',l:'None'},{v:'1',l:'1 retry'},{v:'3',l:'3 retries'}],'0')+
+    H.seg('backoff','Retry spacing',[{v:'off',l:'Immediately'},{v:'on',l:'Backoff and jitter'}],'off')+
+    H.seg('breaker','Circuit breaker',[{v:'off',l:'Off'},{v:'on',l:'On'}],'off')+
+    H.seg('limit','Rate limit to dependency',[{v:'off',l:'Off'},{v:'on',l:'On'}],'off')+
+    H.seg('shed','Degrade gracefully (serve cached fallback)',[{v:'off',l:'Off'},{v:'on',l:'On'}],'off')+
+    '<div class="row"><button class="btn" data-act="lvl" data-k="reset">Reset</button></div>'+
+    '<ul class="gauges" id="g10"></ul><p class="verdict" id="v10" aria-live="polite"></p>';
+
+  function init(el){
+    root=el;
+    H.bind(el,{l10:function(v){S.load=Number(v);SL.refresh();},t10:function(v){S.timeout=Number(v);SL.refresh();}});
+    resetT();settle(40);
+    timer=setInterval(function(){step();update();},500);
+  }
+  function destroy(){if(timer){clearInterval(timer);timer=null;}}
+  function update(){
+    if(!root||!root.isConnected)return;
+    var s=STATE,okP=s.arr>0?s.okRate/s.arr:1;
+    q('#l10').value=S.load;q('#t10').value=S.timeout;H.setText(root,'l10V',S.load+'%');H.setText(root,'t10V',S.timeout+' s');
+    H.syncSeg(root,'slow',S.slow?'slow':'ok');H.syncSeg(root,'retries',String(S.retries));H.syncSeg(root,'backoff',S.backoff?'on':'off');
+    H.syncSeg(root,'breaker',S.breaker?'on':'off');H.syncSeg(root,'limit',S.limit?'on':'off');H.syncSeg(root,'shed',S.shed?'on':'off');
+    H.setText(root,'ok10',H.pct(okP));H.setText(root,'ld10',s.util>9.99?'>999%':H.pct(s.util));H.setText(root,'br10',S.breaker?T.bst:'off');
+    var dst=s.util<0.8?'ok':s.util<1?'warn':'bad';
+    q('#fl10').innerHTML='<div class="nd st-ok"><b>Users</b><span class="sub">'+H.fmtN(s.arr)+' req/s</span></div><span class="arr">→</span>'+
+      '<div class="nd st-'+(S.breaker&&T.bst==='open'?'bad':S.breaker?'ok':'info')+'"><b>Your service</b><span class="sub">sends '+H.fmtN(s.sent)+'/s'+(s.extra>0.5?' (incl. '+H.fmtN(s.extra)+' retries)':'')+'</span></div><span class="arr">→</span>'+
+      '<div class="nd st-'+dst+'"><b>Dependency</b><div class="meter"><i style="width:'+Math.round(H.clamp(s.util,0,1)*100)+'%"></i></div><span class="sub">'+(S.slow?'slow · ':'')+(s.util>9.99?'>999%':H.pct(s.util))+' load · '+H.fmtMs(s.resp*1000)+'</span></div>';
+    var pts=T.hist.map(function(v,i){return [i*0.5-(T.hist.length-1)*0.5,v*100];});
+    q('#ch10').innerHTML=H.chart({w:320,h:150,xmin:-60,xmax:0,ymax:100,series:[{pts:pts}],xticks:[{x:-60,l:'-60 s'},{x:-30,l:'-30 s'},{x:0,l:'now'}],yticks:[{y:0,l:'0%'},{y:50,l:'50%'},{y:100,l:'100%'}],aria:'Share of user requests that succeed over the last 60 seconds'});
+    var g='';
+    g+=H.gauge('Dependency load',(s.util>9.99?'>999%':H.pct(s.util))+' of capacity',Math.min(1,s.util),dst,dst==='bad'?(s.extra>0.5?'Retries are adding '+H.fmtN(s.extra)+' extra calls a second to a service that is already struggling. This is a retry storm.':'Demand is above what the dependency can finish.'):'');
+    g+=H.gauge('User success',H.pct(okP),okP,okP>0.99?'ok':okP>0.9?'warn':'bad',okP>0.99?'':'Users see errors or very slow pages.');
+    g+=H.gauge('Wait vs. timeout',H.fmtMs(s.resp*1000)+' vs '+S.timeout+' s',Math.min(1,s.resp/S.timeout),s.resp<S.timeout*0.6?'ok':s.resp<S.timeout?'warn':'bad',s.resp>=S.timeout?'Calls take longer than the timeout, so they fail even though the dependency is still working on them.':(S.timeout>=8?'A long timeout holds threads and connections for a long time when the dependency is slow.':''));
+    g+=H.gauge('Circuit breaker',S.breaker?T.bst:'off',null,!S.breaker?'info':T.bst==='open'?'warn':'ok',!S.breaker?'Without a breaker you keep calling a dependency that is failing.':T.bst==='open'?'Calls are cut off so the dependency can recover. A trial call is sent after a pause.':T.bst==='half'?'Sending a few trial calls.':'Closed: calls flow normally.');
+    g+=H.gauge('Graceful degradation',S.shed?'on':'off',null,S.shed?'ok':'info',S.shed?'When the dependency is down, serve cached or simplified results instead of an error page.':'Every failure becomes a visible error.');
+    q('#g10').innerHTML=g;
+    var v=okP>0.99?'Healthy.':s.extra>0.5&&dst==='bad'?'A retry storm: failures cause retries, which cause more failures.':S.breaker&&T.bst==='open'?'The breaker is open. Users get '+(S.shed?'a degraded page':'errors')+' while the dependency recovers.':okP>0.9?'Degraded.':'Outage for most users.';
+    H.setText(root,'v10',v);
+    SL.setMode(H.pct(okP)+' succeed');
+  }
+  function apply(o){
+    if(o.reset){resetT();}
+    if(o.load!==undefined)S.load=Number(o.load);if(o.slow!==undefined)S.slow=!!o.slow;
+    if(o.timeout!==undefined)S.timeout=Number(o.timeout);if(o.retries!==undefined)S.retries=Number(o.retries);
+    if(o.backoff!==undefined)S.backoff=!!o.backoff;if(o.breaker!==undefined)S.breaker=!!o.breaker;
+    if(o.limit!==undefined)S.limit=!!o.limit;if(o.shed!==undefined)S.shed=!!o.shed;
+    if(o.settle)settle(o.settle);
+  }
+  function act(k,v){
+    if(k==='slow')S.slow=v==='slow';else if(k==='retries')S.retries=Number(v);else if(k==='backoff')S.backoff=v==='on';
+    else if(k==='breaker')S.breaker=v==='on';else if(k==='limit')S.limit=v==='on';else if(k==='shed')S.shed=v==='on';
+    else if(k==='reset'){resetT();settle(10);}
+  }
+  function initState(){S.load=60;S.slow=false;S.timeout=2;S.retries=0;S.backoff=false;S.breaker=false;S.limit=false;S.shed=false;}
+
+  SL.add({id:10,short:'Reliability',title:'Reliability',
+    tag:'At scale something is always failing. Timeouts, retries, circuit breakers and rate limits decide whether a small failure stays small.',
+    sim:{html:HTML,init:function(el){initState();init(el);},update:update,apply:apply,act:act,destroy:destroy},
+    steps:[
+      {t:'Failures are normal',
+       b:function(){return '<p>If one machine is up 99.9% of the time, a system that needs 100 such machines to all be up is available only about 90% of the time. Failure is not an exception at scale. It is the daily condition.</p><p>The goal is not "nothing fails". It is "a failure stays small". The simulator has your service calling one dependency, such as a payment provider or a recommendation service. You can make the dependency slow and watch what spreads.</p>';},
+       tries:[{l:'Healthy baseline',reset:true,load:60,slow:false,retries:0,breaker:false,limit:false,shed:false,backoff:false,timeout:2}]},
+      {t:'Always set a timeout',
+       b:function(){return '<p>A call with no timeout can wait forever, holding a thread and a connection the whole time. When the dependency slows down, those pile up and your own service stops answering.</p><p>Choose a timeout slightly above the dependency\'s normal slow case. Too short and you fail healthy calls. Too long and failures tie up resources. Make the dependency slow and compare 2 s with 10 s.</p>';},
+       tries:[{l:'Slow dependency, 2 s timeout',reset:true,slow:true,timeout:2,load:60,settle:20},{l:'10 s timeout',timeout:10,settle:20}]},
+      {t:'Retries can start a storm',
+       b:function(){return '<p>Retrying a failed call helps with brief glitches. When the dependency is overloaded, retries add load to the very thing that is struggling, and it fails more, causing more retries.</p><p>Set the dependency to healthy at 85% load. Everything works. Make it slow (half speed) with 3 immediate retries and watch the load shoot past 100%.</p>';},
+       tries:[{l:'85% load, 3 retries, healthy',reset:true,slow:false,load:85,retries:3,backoff:false,settle:20},{l:'Dependency turns slow',slow:true,settle:20}]},
+      {t:'Backoff and jitter',
+       b:function(){return '<p>Spacing retries out (wait 1 s, then 2 s, then 4 s) reduces the pile-on. Adding random jitter stops thousands of clients retrying at the same instant. Capping the total retries per request keeps the work bounded.</p><p>Turn on backoff and compare how much extra load the retries create.</p>';},
+       tries:[{l:'Immediate retries',backoff:false,settle:20},{l:'Backoff and jitter',backoff:true,settle:20}]},
+      {t:'Circuit breakers and rate limits',
+       b:function(){return '<p>A circuit breaker watches the failure rate. When it passes a threshold it opens: calls fail immediately without touching the dependency. After a pause it lets a few trial calls through, and closes again if they succeed. It gives a struggling service room to recover.</p><p>A rate limit caps how much you send. Together they protect the dependency from you.</p>';},
+       tries:[{l:'Slow, 3 retries, no protection',reset:true,slow:true,load:85,retries:3,backoff:false,breaker:false,limit:false,settle:20},{l:'Add the breaker',breaker:true,settle:40},{l:'Add a rate limit',limit:true,settle:20}]},
+      {t:'Degrade gracefully',
+       b:function(){return '<p>When something non-essential fails, the page should still work. If recommendations are down, show popular items from a cache. If the payment provider is down, take the order and charge later.</p><p>Decide in advance which features are essential and which can be dropped. Then practice it. Turn on graceful degradation while the breaker is open and compare what users see.</p>';},
+       tries:[{l:'Breaker on, slow dependency',reset:true,slow:true,breaker:true,load:70,retries:1,settle:60},{l:'Add graceful degradation',shed:true,settle:20}]},
+      {t:'What you can take away',
+       b:function(){return '<ul><li>Failure is normal. Contain it.</li><li>Set timeouts on every network call, and keep them short.</li><li>Retry only briefly and with backoff and jitter. Bound the total.</li><li>Use circuit breakers and rate limits so a slow service does not drag down its callers.</li><li>Decide in advance what to drop when things go wrong.</li></ul><p>Next level: put the pieces together on three classic designs.</p>';}}
+    ],
+    quiz:[
+      {q:'A dependency is overloaded and slow. You add 3 immediate retries per call. What is the likely result?',o:['Users see fewer errors','Load rises further and the dependency fails harder: a retry storm','Nothing changes','The dependency recovers faster'],a:1,h:'Where do the extra calls go?',x:'Retries multiply load on the struggling service. Use backoff, jitter and a retry cap.'},
+      {q:'What does an open circuit breaker do?',o:['Retries every call','Fails calls immediately so the dependency can recover','Doubles the timeout','Restarts the dependency'],a:1,h:'Think of a fuse.',x:'It stops sending traffic for a while, then tries a few trial calls before closing.'},
+      {q:'Why is a missing timeout dangerous?',o:['It slows the first request','Calls to a slow dependency pile up and exhaust your threads and connections','It breaks encryption','It makes retries impossible'],a:1,h:'What holds a thread while it waits?',x:'Unbounded waits spread one slow dependency into your own outage.'},
+      {q:'Recommendations are down. What is the best user experience?',o:['An error page','Show popular items from a cache and keep the page working','Keep retrying until it works','Redirect to the home page'],a:1,h:'Which feature is essential, and which is not?',x:'Graceful degradation keeps the core experience working when a non-essential part fails.'}
+    ]});
+})();
+/* ===== Level 11: design walkthroughs ===== */
+(function(){
+  var H=SL.H;
+  var S={cs:'url',dau:1000000,uv:50,fan:'hybrid',foll:200};
+  var root=null;
+  function q(s){return root.querySelector(s);}
+  var CASES={url:'URL shortener',chat:'Chat service',feed:'News feed'};
+
+  function calc(){
+    var d=S.dau,r={rows:[],parts:[],gauges:[],verdict:''},peak=3,day=86400;
+    if(S.cs==='url'){
+      var wr=d*0.1/day,rd=wr*100,pr=rd*peak,pw=wr*peak,store=d*0.1*365*5*500/1e9;
+      var keys=Math.pow(62,7),yr5=d*0.1*365*5;
+      r.rows=[['New URLs per day',H.fmtC(d*0.1)],['Writes per second (peak)',H.fmtRps(pw)],['Redirects per second (peak)',H.fmtRps(pr)],['Read to write ratio','100 : 1'],['Storage after 5 years',H.fmtData(store)],['Keys used of 7 characters',(yr5/keys*100).toFixed(4)+'%']];
+      r.parts=[['Load balancer + stateless app servers','Redirects are simple lookups.',true],
+        ['Cache (key to long URL)','100:1 reads and a hot minority make the hit ratio high.',pr>2000],
+        ['Key-value store, sharded by short code',H.fmtData(store)+' of small rows; reads by key only.',store>4000],
+        ['Pre-generated key service','Avoids collisions and a lookup on every create.',true],
+        ['Read replicas','Reads dominate; replicas add a standby.',pr>5000],
+        ['Queue for click analytics','Do not slow the redirect to count clicks.',pr>1000]];
+      r.gauges=[['Read load',pr,3000,'req/s on the lookup path'],['Storage',store,4000,'GB over 5 years']];
+      r.verdict='Reads dominate by 100 to 1, so the whole design is about cheap, cacheable lookups. A redirect should return in a few milliseconds.';
+    }else if(S.cs==='chat'){
+      var msgs=d*40,mps=msgs/day*peak,conn=d*S.uv/100,srv=Math.ceil(conn/50000),store2=msgs*365*100/1e9;
+      r.rows=[['Messages per day',H.fmtC(msgs)],['Messages per second (peak)',H.fmtRps(mps)],['Users online at peak ('+S.uv+'%)',H.fmtC(conn)],['Persistent connections per server','50,000'],['Gateway servers needed',H.fmtN(srv)],['Message storage per year',H.fmtData(store2)]];
+      r.parts=[['Connection gateways (WebSocket)','Each user holds an open connection. Servers hold state, so users must be routed by connection.',true],
+        ['Presence and routing store','Which gateway is each user connected to?',conn>10000],
+        ['Message queue between gateways','Deliver to a user on another gateway; absorb bursts.',mps>200],
+        ['Message store sharded by conversation','Reads are "latest messages in this chat", so partition by chat id.',store2>2000],
+        ['Offline push notifications','Users who are not connected still need the message.',true],
+        ['Delivery receipts with idempotent ids','At-least-once delivery means retries; clients must drop duplicates.',true]];
+      r.gauges=[['Gateway servers',srv,2000,'servers'],['Write load',mps,50000,'messages/s']];
+      r.verdict='The hard part is not throughput but holding '+H.fmtC(conn)+' open connections and routing each message to the right one.';
+    }else{
+      var posts=d*0.5/day*peak,loads=d*20/day*peak,fo=posts*S.foll,celeb=10000000;
+      var perLoad=S.fan==='write'?1:S.fan==='read'?S.foll:1+10;
+      var wFan=S.fan==='read'?posts:S.fan==='write'?fo:posts*S.foll*0.99;
+      var rQ=loads*perLoad,celebW=S.fan==='read'?1:S.fan==='write'?celeb:1;
+      r.rows=[['Posts per second (peak)',H.fmtRps(posts)],['Feed loads per second (peak)',H.fmtRps(loads)],['Average followers',String(S.foll)],['Timeline writes per second',H.fmtN(wFan)],['Lookups per feed load',String(perLoad)],['One celebrity post writes',H.fmtC(celebW)+' timelines']];
+      r.parts=[['Post store','The source of truth for every post.',true],
+        ['Precomputed timelines in a cache','Fan-out on write makes reading a feed one lookup.',S.fan!=='read'],
+        ['Fan-out workers behind a queue','Writing '+H.fmtC(S.foll)+' timelines per post is background work.',S.fan!=='read'],
+        ['Merge celebrity posts at read time','Writing 10M timelines for one post is too slow; pull those at read.',S.fan==='hybrid'],
+        ['Ranking service','Order by relevance, not only time.',true],
+        ['CDN for media','Images and video dominate bandwidth.',true]];
+      r.gauges=[['Timeline write load',wFan,500000,'writes/s'],['Feed read load',rQ,100000,'lookups/s']];
+      r.verdict=S.fan==='write'?'Reads are cheap. A celebrity post causes 10M writes at once.':S.fan==='read'?'Writes are cheap. Every feed load fans out to '+S.foll+' lookups, which is too slow.':'Normal users fan out on write. Celebrities are merged at read time. Each side avoids its worst case.';
+    }
+    return r;
+  }
+  var HTML=
+    H.seg('cs','Design this',[{v:'url',l:'URL shortener'},{v:'chat',l:'Chat service'},{v:'feed',l:'News feed'}],'url')+
+    H.usersSlider('u11',1000000,'Daily active users')+
+    '<div id="ex11"></div>'+
+    '<div id="rows11"></div>'+
+    '<ul class="gauges" id="g11"></ul>'+
+    '<label class="ctl">Components this design needs</label><div id="parts11"></div><p class="verdict" id="v11" aria-live="polite"></p>';
+
+  function init(el){
+    root=el;
+    H.bind(el,{u11:function(v){S.dau=H.logU(v);SL.refresh();},uv11:function(v){S.uv=Number(v);SL.refresh();},fo11:function(v){S.foll=Number(v);SL.refresh();}});
+  }
+  function update(){
+    var r=calc();
+    H.syncSeg(root,'cs',S.cs);
+    q('#u11').value=H.vOf(S.dau);H.setText(root,'u11V',H.fmtN(S.dau));
+    var ex='';
+    if(S.cs==='chat')ex=H.slider('uv11','Online at once (%)',1,30,S.uv);
+    if(S.cs==='feed')ex=H.seg('fan','Fan-out strategy',[{v:'write',l:'On write'},{v:'read',l:'On read'},{v:'hybrid',l:'Hybrid'}],S.fan)+H.slider('fo11','Average followers',20,2000,S.foll,10);
+    if(q('#ex11').getAttribute('data-cs')!==S.cs){q('#ex11').innerHTML=ex;q('#ex11').setAttribute('data-cs',S.cs);}
+    if(S.cs==='feed')H.syncSeg(root,'fan',S.fan);
+    if(S.cs==='chat'){H.setText(root,'uv11V',S.uv+'%');var e1=q('#uv11');if(e1)e1.value=S.uv;}
+    if(S.cs==='feed'){H.setText(root,'fo11V',String(S.foll));var e2=q('#fo11');if(e2)e2.value=S.foll;}
+    q('#rows11').innerHTML=H.table(['Estimate','Value'],r.rows.map(function(x){return {num:[1],c:[x[0],x[1]]};}));
+    q('#g11').innerHTML=r.gauges.map(function(x){var f=x[1]/x[2];return H.gauge(x[0],H.fmtC(x[1])+' '+x[3],Math.min(1,f),f<0.5?'ok':f<1?'warn':'bad',f>=1?'One machine cannot do this. Split the work.':f>=0.5?'Getting close to what one machine can do.':'');}).join('');
+    q('#parts11').innerHTML=H.table(['Component','Why','Needed'],r.parts.map(function(p){return {c:['<b>'+H.esc(p[0])+'</b>',H.esc(p[1]),p[2]?'yes':'not yet']};}));
+    H.setText(root,'v11',r.verdict);
+    SL.setMode(CASES[S.cs]);
+  }
+  function apply(o){
+    if(o.cs)S.cs=o.cs;if(o.dau!==undefined)S.dau=Math.max(1,Math.round(Number(o.dau)));
+    if(o.fan)S.fan=o.fan;if(o.foll!==undefined)S.foll=Number(o.foll);if(o.uv!==undefined)S.uv=Number(o.uv);
+  }
+  function act(k,v){
+    if(k==='cs')S.cs=v;else if(k==='fan')S.fan=v;
+  }
+  function initState(){S.cs='url';S.dau=1000000;S.uv=50;S.fan='hybrid';S.foll=200;}
+
+  SL.add({id:11,short:'Design walkthroughs',title:'Design walkthroughs',
+    tag:'Put the pieces together on three classic problems. In each one, estimate first, find the bottleneck, then choose components that answer it.',
+    sim:{html:HTML,init:function(el){initState();init(el);root.querySelector('#ex11').setAttribute('data-cs','');},update:update,apply:apply,act:act},
+    steps:[
+      {t:'A method that always works',
+       b:function(){return '<ol><li><b>Clarify.</b> What does the product do? What matters most: speed, never losing data, cost?</li><li><b>Estimate.</b> Users to requests per second, bandwidth and storage.</li><li><b>Find the bottleneck.</b> Which number is biggest compared with one machine?</li><li><b>Sketch the simplest design</b> that handles it, then add pieces only where a number forces you to.</li><li><b>Stress it.</b> What fails? What is the single point of failure? What happens at 10× traffic?</li></ol><p>Each of the three cases below follows this order, using the pieces from earlier levels.</p>';}},
+      {t:'URL shortener: reads dominate',dyn:true,
+       b:function(){return '<p>Create a short link once, redirect to it many times. The redirect is the whole product, so it has to be fast and survive failures.</p><p>The key choice is how to make short codes: hash the long URL (collisions, repeats) or generate unique ids ahead of time and encode them in base 62. Seven characters give 3.5 trillion codes.</p><p>Look at the numbers: reads are 100 times writes, so a cache and replicas matter more than sharding at first.</p>';},
+       tries:[{l:'URL shortener, 1M users',cs:'url',dau:1000000},{l:'100M users',dau:100000000}]},
+      {t:'Chat: connections are the problem',dyn:true,
+       b:function(){return '<p>Chat is not heavy on requests per second. It is heavy on open connections. Each online user holds a WebSocket to a gateway server, so gateways are stateful and the load balancer cannot send a message to any server.</p><p>To deliver a message you look up which gateway holds the recipient\'s connection, pass the message there through a queue, and write it to a store sharded by conversation. Offline users get a push notification.</p>';},
+       tries:[{l:'Chat, 1M users',cs:'chat',dau:1000000},{l:'Chat, 100M users',dau:100000000}]},
+      {t:'News feed: fan-out',dyn:true,
+       b:function(){return '<p>When someone posts, who sees it? You can write the post into each follower\'s timeline (fan-out on write) or build the timeline when the follower opens the app (fan-out on read).</p><p>Write fan-out makes reads instant and a celebrity post becomes millions of writes. Read fan-out makes writes trivial and every feed load queries every followee. Real systems mix them: push for normal accounts, pull for celebrities.</p><p>Try each strategy and watch which load explodes.</p>';},
+       tries:[{l:'Fan-out on write',cs:'feed',fan:'write',dau:10000000},{l:'Fan-out on read',fan:'read'},{l:'Hybrid',fan:'hybrid'}]},
+      {t:'What you can take away',
+       b:function(){return '<ul><li>Start with arithmetic. The biggest number tells you what to design around.</li><li>Different products fail in different places: reads (URL shortener), connections (chat), fan-out (feed).</li><li>The same toolbox solves each: cache, replicate, shard, queue, and stateless servers.</li><li>Explain the trade-off for every piece you add.</li></ul><p>Final level: do it yourself, against a clock.</p>';}}
+    ],
+    quiz:[
+      {q:'For a URL shortener, which fact most shapes the design?',o:['Writes are 100 times reads','Reads are about 100 times writes','Storage is huge','Users need chat'],a:1,h:'How many times is a short link used after it is created?',x:'Redirects dominate, so cacheable lookups and read replicas matter most.'},
+      {q:'Why can a load balancer not send a chat message to any gateway?',o:['Messages are encrypted','The recipient\'s open connection is on one specific gateway','Gateways are stateless','Servers cannot talk to each other'],a:1,h:'Where does the user\'s WebSocket live?',x:'Connections are stateful. You must find the gateway that holds the recipient\'s connection.'},
+      {q:'A celebrity with 10M followers posts. What is the problem with pure fan-out on write?',o:['Reads become slow','It creates 10M timeline writes at once','It loses posts','It needs no cache'],a:1,h:'One post turns into how many writes?',x:'Hybrid designs pull celebrity posts at read time instead of pushing them to every follower.'},
+      {q:'What should you do before drawing any boxes in a design interview?',o:['Choose a database','Clarify requirements and estimate the load','Pick a cloud provider','Write the API code'],a:1,h:'What tells you which component is needed?',x:'The numbers decide the design. Estimate first, then add components where the numbers force them.'}
+    ]});
+})();
+/* ===== Level 12: capstone ===== */
+(function(){
+  var H=SL.H;
+  var P={
+    photo:{name:'Photo sharing app',brief:'People upload photos and follow others. 50M daily users each view 30 photos and upload 0.2 per day. An average photo is 2 MB.',dau:50e6,read:30,write:0.2,size:2,
+      need:['lb','cache','cdn','blob','shard','queue'],skip:['sync'],bottleneck:'storage',
+      note:'Photos are large and immutable, so object storage plus a CDN carries the load. Fan-out and thumbnailing run through a queue. Metadata is the part that gets sharded.'},
+    ride:{name:'Ride hailing',brief:'Riders request cars and drivers update location every 4 seconds. 5M daily riders take 2 rides each. 1M drivers are online at peak.',dau:5e6,read:20,write:2,size:0.0002,extra:250000,
+      need:['lb','cache','shard','queue','geo','replica'],skip:['cdn'],bottleneck:'writes',
+      note:'Driver location updates are the heavy write stream (250k per second). Keep current positions in memory, partitioned by geographic cell, and write history asynchronously.'},
+    docs:{name:'Collaborative docs',brief:'People edit shared documents together. 20M daily users each send about 200 small edits (1 KB each) a day and load documents about 100 times a day. Other editors must see an edit within a second.',dau:20e6,read:100,write:200,size:0.001,
+      need:['lb','sticky','queue','replica','cache'],skip:['cdn'],bottleneck:'connections',
+      note:'Each open document is a small real-time session. Route all editors of one document to the same server, merge edits there, and persist asynchronously.'}
+  };
+  var COMP=[
+    ['lb','Load balancer + stateless app servers'],['cache','Cache'],['cdn','CDN for static and large files'],['blob','Object storage for large files'],
+    ['replica','Read replicas'],['shard','Sharding'],['queue','Queue for background work'],['sticky','Route users to a specific server (stateful sessions)'],
+    ['geo','Geospatial partitioning'],['sync','Synchronous cross-region replication on every write']
+  ];
+  var S={p:'photo',qps:'',store:'',bn:'',comps:{},t:45*60,run:false,shown:false};
+  var root=null,timer=null;
+  function q(s){return root.querySelector(s);}
+  function truth(){
+    var p=P[S.p],day=86400,peak=3;
+    var reads=p.dau*p.read/day*peak,writes=p.dau*p.write/day*peak;
+    var store=p.dau*p.write*365*p.size/1e6; /* TB per year, size in MB */
+    var extra=p.extra||0;return {reads:reads,writes:writes+extra,total:reads+writes+extra,store:store};
+  }
+  function within(v,t,f){var x=Number(v);if(!(x>0))return null;return x/t<=f&&t/x<=f;}
+  function score(){
+    var p=P[S.p],t=truth(),pts=0,out=[];
+    var a=within(S.qps,t.total,3),b=within(S.store,t.store,3);
+    out.push(['Peak requests/s within 3×',a===null?'enter a number':a?'yes':'no ('+H.fmtC(t.total)+' is closer)',a?20:0,20]);pts+=a?20:0;
+    out.push(['Yearly storage within 3×',b===null?'enter a number':b?'yes':'no ('+H.fmtData(t.store*1000)+' per year is closer)',b?20:0,20]);pts+=b?20:0;
+    var bnOk=S.bn===p.bottleneck;
+    out.push(['Named the bottleneck',S.bn?(bnOk?'yes':'no ('+p.bottleneck+')'):'choose one',bnOk?20:0,20]);pts+=bnOk?20:0;
+    var got=p.need.filter(function(k){return S.comps[k];}).length;
+    var cp=Math.round(got/p.need.length*30);
+    out.push(['Needed components chosen',got+' of '+p.need.length,cp,30]);pts+=cp;
+    var over=Object.keys(S.comps).filter(function(k){return S.comps[k]&&p.need.indexOf(k)<0;});
+    var op=Math.max(0,10-over.length*5);
+    out.push(['Avoided unnecessary parts',over.length?over.length+' extra: '+over.map(function(k){return label(k);}).join('; '):'none',op,10]);pts+=op;
+    return {pts:pts,rows:out};
+  }
+  function label(k){var r='';COMP.forEach(function(c){if(c[0]===k)r=c[1];});return r;}
+  function fmtT(s){var m=Math.floor(s/60),x=s%60;return (m<10?'0':'')+m+':'+(x<10?'0':'')+x;}
+
+  var HTML=
+    H.seg('p','Prompt',[{v:'photo',l:'Photo sharing'},{v:'ride',l:'Ride hailing'},{v:'docs',l:'Collaborative docs'}],'photo')+
+    '<p id="br12"></p>'+
+    '<div class="readouts"><div><div class="k">Time left</div><div class="v timer" id="tm12" style="font-size:24px">45:00</div></div><div><div class="k">Score</div><div class="v" id="sc12">—</div></div><div><div class="k">Rating</div><div class="v" id="rt12">—</div></div></div>'+
+    '<div class="row"><button class="btn primary" id="st12" data-act="lvl" data-k="timer">Start the clock</button><button class="btn" data-act="lvl" data-k="reset">Clear answers</button></div>'+
+    '<label class="ctl" for="qps12">1. Peak requests per second (reads + writes)</label><input class="field" id="qps12" type="number" min="0" placeholder="e.g. 25000">'+
+    '<label class="ctl" for="sto12" style="margin-top:10px">2. New storage per year (TB)</label><input class="field" id="sto12" type="number" min="0" placeholder="e.g. 700">'+
+    '<label class="ctl" for="bn12" style="margin-top:10px">3. The bottleneck</label><select id="bn12"><option value="">Choose…</option><option value="reads">Read throughput</option><option value="writes">Write throughput</option><option value="storage">Storage size</option><option value="connections">Open connections / stateful sessions</option></select>'+
+    '<label class="ctl" style="margin-top:10px">4. Components you would use</label><div id="cp12"></div>'+
+    '<div class="row"><button class="btn primary" data-act="lvl" data-k="grade">Check my design</button></div>'+
+    '<div id="res12"></div><p class="verdict" id="v12" aria-live="polite"></p>';
+
+  function init(el){
+    root=el;
+    q('#qps12').addEventListener('input',function(e){S.qps=e.target.value;});
+    q('#sto12').addEventListener('input',function(e){S.store=e.target.value;});
+    q('#bn12').addEventListener('change',function(e){S.bn=e.target.value;});
+    el.addEventListener('change',function(e){var k=e.target.getAttribute&&e.target.getAttribute('data-comp');if(k){S.comps[k]=e.target.checked;}});
+    timer=setInterval(function(){if(S.run&&S.t>0){S.t--;if(S.t===0)S.run=false;}var tm=root&&root.isConnected&&q('#tm12');if(tm){tm.textContent=fmtT(S.t);var b=q('#st12');if(b)b.textContent=S.run?'Pause the clock':(S.t<45*60&&S.t>0?'Resume':'Start the clock');}},1000);
+    buildComps();
+  }
+  function destroy(){if(timer){clearInterval(timer);timer=null;}}
+  function buildComps(){
+    q('#cp12').innerHTML=COMP.map(function(c){return '<label style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;font-size:14px"><input type="checkbox" data-comp="'+c[0]+'" '+(S.comps[c[0]]?'checked':'')+' style="margin-top:4px"><span>'+H.esc(c[1])+'</span></label>';}).join('');
+  }
+  function update(){
+    var p=P[S.p];
+    H.syncSeg(root,'p',S.p);
+    H.setText(root,'br12',p.brief);
+    q('#tm12').textContent=fmtT(S.t);
+    q('#bn12').value=S.bn;q('#qps12').value=S.qps;q('#sto12').value=S.store;
+    var res=q('#res12');
+    if(S.shown){
+      var r=score(),rating=r.pts>=85?'Staff-ready':r.pts>=65?'Solid':r.pts>=40?'Getting there':'Review levels 2 to 10';
+      H.setText(root,'sc12',r.pts+' / 100');H.setText(root,'rt12',rating);
+      res.innerHTML=H.table(['Check','Result','Points'],r.rows.map(function(x){return {num:[2],cls:x[2]<x[3]?'hit':'',c:[x[0],x[1],x[2]+' / '+x[3]]};}))+'<p class="small">'+H.esc(p.note)+'</p>';
+      H.setText(root,'v12',r.pts>=85?'Strong answer. Try another prompt with half the time.':'Fix the red rows and check again.');
+      if(r.pts>=65)SL.markDone(12);
+    }else{
+      H.setText(root,'sc12','—');H.setText(root,'rt12','—');res.innerHTML='';H.setText(root,'v12','Work through the four parts, then check your design. Read the brief again before you start.');
+    }
+    SL.setMode(S.run?'timer running':P[S.p].name);
+  }
+  function apply(o){
+    if(o.p){S.p=o.p;S.qps='';S.store='';S.bn='';S.comps={};S.shown=false;buildComps();}
+    if(o.qps!==undefined)S.qps=String(o.qps);if(o.store!==undefined)S.store=String(o.store);if(o.bn!==undefined)S.bn=o.bn;
+    if(o.comps){S.comps={};o.comps.forEach(function(k){S.comps[k]=true;});buildComps();}
+    if(o.grade)S.shown=true;
+  }
+  function act(k,v){
+    if(k==='p'){apply({p:v});}
+    else if(k==='timer'){S.run=!S.run;if(S.t<=0)S.t=45*60;}
+    else if(k==='reset'){S.qps='';S.store='';S.bn='';S.comps={};S.shown=false;S.t=45*60;S.run=false;buildComps();}
+    else if(k==='grade'){S.shown=true;}
+  }
+  function initState(){S.p='photo';S.qps='';S.store='';S.bn='';S.comps={};S.t=45*60;S.run=false;S.shown=false;}
+
+  SL.add({id:12,short:'Capstone',title:'Capstone',
+    tag:'Design a system in 45 minutes. Estimate, find the bottleneck, choose components, then see how your answer compares.',
+    sim:{html:HTML,init:function(el){initState();init(el);},update:update,apply:apply,act:act,destroy:destroy},
+    steps:[
+      {t:'How to run it',
+       b:function(){return '<p>Pick a prompt in the panel and start the clock. Work in this order, as in a real design discussion:</p><ol><li>Reread the brief and write down the numbers it gives you.</li><li>Estimate peak requests per second and yearly storage. Show your arithmetic on paper.</li><li>Name the one resource that will break first.</li><li>Choose only the components that answer that problem.</li></ol><p>Then check your design. The score rewards good estimates, finding the real bottleneck and restraint.</p>';}},
+      {t:'Useful numbers to remember',
+       b:function(){return H.table(['Fact','Value'],[
+         {c:['Seconds in a day','86,400 (use 100,000 for quick math)']},
+         {c:['1M requests a day','about 12 per second']},
+         {c:['Peak vs. average','2 to 5×']},
+         {c:['One app server','a few hundred to a few thousand req/s']},
+         {c:['One database node','several thousand simple queries/s']},
+         {c:['Memory read','~100 ns, SSD ~100 µs, same-zone network ~0.5 ms, cross-region ~50+ ms']},
+         {c:['1 million × 1 KB','1 GB']}])+'<p>Round aggressively. The goal is the right order of magnitude, and the score allows a factor of three.</p>';}},
+      {t:'Common traps',
+       b:function(){return '<ul><li><b>Over-engineering.</b> Adding sharding to a system that fits on one database.</li><li><b>Ignoring the biggest number.</b> Designing for queries per second when connections or storage is the real limit.</li><li><b>Forgetting failure.</b> Every box you add is a new single point of failure unless you duplicate it.</li><li><b>Skipping trade-offs.</b> For every choice, say what it costs.</li></ul><p>Try the three prompts. The scoring panel shows what you missed.</p>';}},
+      {t:'Where to go next',
+       b:function(){return '<p>You have covered the core toolbox: stateless servers and load balancing, databases, caching, replication, sharding, queues, consistency, failure handling and end-to-end design.</p><p>Natural next topics: observability (metrics, logs, traces), deployments and rollbacks, security and abuse, multi-region design, cost control, search and indexing, and stream processing. Each can become a new level on this page.</p>';}}
+    ],
+    quiz:[
+      {q:'Which comes first when you answer a design question?',o:['Draw the final architecture','Clarify requirements and estimate the load','Pick technologies','List every database you know'],a:1,h:'What tells you which components you need?',x:'Estimates drive the design.'},
+      {q:'You estimate 500 requests per second and 2 TB of data. What is the most reasonable design?',o:['Sharded database with multi-region replication','A simple stateless app tier with one database, a replica for safety, and backups','A microservice per table','Ten Kafka clusters'],a:1,h:'Do the numbers force anything exotic?',x:'Those numbers fit comfortably on a modest setup. Extra parts add cost and failure modes.'},
+      {q:'When explaining a component choice, what should you always add?',o:['Its brand name','What it costs you: a trade-off or a new failure mode','Its release date','Who else uses it'],a:1,h:'Every choice has a downside.',x:'Naming the trade-off shows you understand why you chose it.'}
+    ]});
+})();
+SL.boot();
+</script>
+
+</body>
+</html>
